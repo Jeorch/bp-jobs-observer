@@ -1,0 +1,12 @@
+{
+  "bootstrap.servers": "123.56.179.133:9092",
+  "security.protocol": "SSL",
+  "ssl.ca.location": "/Users/jeorch/kit/kafka-secrets/snakeoil-ca-1.crt",
+  "ssl.certificate.location": "/Users/jeorch/kit/kafka-secrets/kafkacat-ca1-signed.pem",
+  "ssl.key.location": "/Users/jeorch/kit/kafka-secrets/kafkacat.client.key",
+  "ssl.key.password": "pharbers",
+  "broker.address.family": "v4",
+  "group.id": "bp-go-lib.kafka.group",
+  "session.timeout.ms": "6000",
+  "auto.offset.reset": "latest"
+}

@@ -6,7 +6,7 @@
   "ssl.key.location": "/Users/jeorch/kit/kafka-secrets/kafkacat.client.key",
   "ssl.key.password": "pharbers",
   "broker.address.family": "v4",
-  "group.id": "bp-go-lib.kafka.group",
+  "group.id": "bp-jobs-observer.kafka.group",
   "session.timeout.ms": "6000",
   "auto.offset.reset": "latest"
 }

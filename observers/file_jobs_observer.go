@@ -11,24 +11,6 @@ import (
 	"time"
 )
 
-//"args": {
-//    "db_host": "59.110.31.50",
-//    "db_port": "5555",
-//    "database": "pharbers-sandbox-600",
-//    "collection": "assets",
-//    "conditions": [
-//      {
-//        "key": "file",
-//        "value": "null",
-//        "operator": "!="
-//      },
-//      {
-//        "key": "dfs",
-//        "value": "nil",
-//        "operator": "=="
-//      }
-//    ]
-//  }
 type BpFileJobsObserver struct {
 	Id             string                 `json:"id"`
 	DBHost         string                 `json:"db_host"`
@@ -82,18 +64,16 @@ func (bfjo *BpFileJobsObserver) Open() {
 
 func (bfjo *BpFileJobsObserver) Exec() {
 	execLogger := log.NewLogicLoggerBuilder().Build()
-	var assets []models.BpAsset
-	//err := dbSession.DB(bfjo.Database).C(bfjo.Collection).Find(bfjo.Conditions).All(&assets)
-	//临时测试12个
-	err := dbSession.DB(bfjo.Database).C(bfjo.Collection).Find(bfjo.Conditions).Limit(12).All(&assets)
-	count, err := dbSession.DB(bfjo.Database).C(bfjo.Collection).Find(bfjo.Conditions).Count()
-	execLogger.Info("count=", count)
+	execLogger.Info("start exec")
+
+	//查询Jobs
+	files, err := bfjo.queryJobs()
 	if err != nil {
 		panic(err.Error())
 	}
 
-	length := len(assets)
-	execLogger.Info("length=", length)
+	length := len(files)
+	execLogger.Info("jobs length=", length)
 
 	jobs = make(chan models.BpFile, length)
 	//用作判断job是否完成的
@@ -107,17 +87,8 @@ func (bfjo *BpFileJobsObserver) Exec() {
 		go bfjo.worker(w, jobs)
 	}
 
-	//push job
-	for i, a := range assets {
-		file, err := bfjo.queryFile(a.File)
-		if err != nil {
-			panic(err)
-		}
-		fmt.Println(i, "push")
-		jobs <- file
-		fmt.Println(i, "push done")
-	}
-
+	//将file job push 到 chan队列
+	pushJobs(jobs, files)
 	execLogger.Info("All jobs pushed done!")
 
 	//启动监听返回值（阻塞当前线程）
@@ -132,9 +103,61 @@ func (bfjo *BpFileJobsObserver) Close() {
 	close(jobStatus)
 }
 
+func (bfjo *BpFileJobsObserver) queryJobs() ([]models.BpFile, error) {
+
+	logger := log.NewLogicLoggerBuilder().Build()
+	logger.Info("query jobs from db")
+	var assets []models.BpAsset
+	//err := dbSession.DB(bfjo.Database).C(bfjo.Collection).Find(bfjo.Conditions).All(&assets)
+	//临时测试12个
+	err := dbSession.DB(bfjo.Database).C(bfjo.Collection).Find(bfjo.Conditions).Limit(12).All(&assets)
+	if err != nil {
+		return nil, err
+	}
+
+	count, err := dbSession.DB(bfjo.Database).C(bfjo.Collection).Find(bfjo.Conditions).Count()
+	if err != nil {
+		return nil, err
+	}
+	logger.Info("count=", count)
+
+	files := make([]models.BpFile, 0)
+	for _, a := range assets {
+		file, e := bfjo.queryFile(a.File)
+		if e != nil {
+			return nil, e
+		}
+		files = append(files, file)
+	}
+
+	return files, nil
+}
+
+func (bfjo *BpFileJobsObserver) queryFile(id bson.ObjectId) (models.BpFile, error) {
+	var file models.BpFile
+	err := dbSession.DB(bfjo.Database).C("files").Find(bson.M{"_id": id}).One(&file)
+	if err != nil {
+		return file, err
+	}
+	return file, err
+}
+
+func pushJobs(jobs chan<- models.BpFile, files []models.BpFile)  {
+	logger := log.NewLogicLoggerBuilder().Build()
+	logger.Info("push jobs to chan")
+	for _, file := range files {
+		jobs <- file
+	}
+}
+
 func (bfjo *BpFileJobsObserver) worker(id int, jobs <-chan models.BpFile) {
 	workerLogger := log.NewLogicLoggerBuilder().Build()
 	workerLogger.Info("worker", id, " standby!")
+
+	//设置等待超时
+	//t := time.NewTimer(6 * time.Hour) // 单个Job等待最高6小时
+	d := 11 * time.Second
+	t := time.NewTimer(d) // 测试使用：单个Job等待最高6s
 
 	for j := range jobs {
 
@@ -152,10 +175,6 @@ func (bfjo *BpFileJobsObserver) worker(id int, jobs <-chan models.BpFile) {
 		jStatus[jobId] = JOB_RUN
 		//存进jobStatus
 		jobStatus <- jStatus
-
-		//设置等待超时
-		//t := time.NewTimer(6 * time.Hour) // 单个Job等待最高6小时
-		t := time.NewTimer(6 * time.Second) // 测试使用：单个Job等待最高6s
 
 		locked := true
 		for locked {
@@ -178,20 +197,11 @@ func (bfjo *BpFileJobsObserver) worker(id int, jobs <-chan models.BpFile) {
 			}
 
 		}
-		t.Stop()
+		t.Reset(d)
 
 	}
 
 	workerLogger.Info("worker", id, " done!")
-}
-
-func (bfjo *BpFileJobsObserver) queryFile(id bson.ObjectId) (models.BpFile, error) {
-	var file models.BpFile
-	err := dbSession.DB(bfjo.Database).C("files").Find(bson.M{"_id": id}).One(&file)
-	if err != nil {
-		panic(err.Error())
-	}
-	return file, err
 }
 
 func sendJobRequest(topic string, job models.BpFile) error {
@@ -240,7 +250,6 @@ func subscribeAvroFunc(key interface{}, value interface{}) {
 
 func (bfjo *BpFileJobsObserver) dealJobResult(jStatus map[string]string, jobId string) (done bool) {
 
-
 	//logger := log.NewLogicLoggerBuilder().SetJobId(jobId).Build()
 
 	status, ok := jStatus[jobId]
@@ -258,4 +267,74 @@ func (bfjo *BpFileJobsObserver) dealJobResult(jStatus map[string]string, jobId s
 
 	return
 
+}
+
+func (bfjo *BpFileJobsObserver) scheduleJob(d time.Duration) {
+
+	//1. 设置ticker 循环时间
+	//2. 扫描当前的Jobs，确定job len为空，且jobStatus都为End
+	//3. 重新查询Jobs
+	//4. 将查询的job push到job chan
+
+	logger := log.NewLogicLoggerBuilder().Build()
+
+	t := time.NewTimer(d)
+	defer t.Stop()
+
+	for {
+		select {
+		case <-t.C:
+			logger.Info("start schedule job ...")
+
+			scanCurrentJobs()
+
+			//查询Jobs
+			files, err := bfjo.queryJobs()
+			if err != nil {
+				panic(err.Error())
+			}
+
+			length := len(files)
+			logger.Info("jobs length=", length)
+
+			jobs = make(chan models.BpFile, length)
+			pushJobs(jobs, files)
+
+			// need reset timer
+			t.Reset(d)
+		}
+
+	}
+
+}
+
+func scanCurrentJobs()  {
+
+	logger := log.NewLogicLoggerBuilder().Build()
+	logger.Info("Start scan current jobs")
+	jobsChanNotEmpty := len(jobs) != 0
+	jobsIsRunning := true
+	//1. 每隔1s查询一次jobs chan 是否为空
+	for jobsChanNotEmpty  {
+		time.Sleep(time.Second)
+		jobsChanNotEmpty = len(jobs) != 0
+	}
+	//2. 每隔1s查询JobStatus的状态
+	for jobsIsRunning  {
+		time.Sleep(time.Second)
+		jobsIsRunning = checkJobsIsRunning()
+	}
+	logger.Info("Current jobs all done")
+
+}
+
+func checkJobsIsRunning() bool {
+
+	jStatus := <-jobStatus
+	for _, status := range jStatus {
+		if status == JOB_RUN {
+			return true
+		}
+	}
+	return false
 }

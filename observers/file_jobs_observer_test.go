@@ -18,6 +18,7 @@ func TestBpFileJobsObserver_Open_Exec(t *testing.T) {
 		Conditions:map[string]interface{}{
 			"$and": []map[string]interface{}{
 				map[string]interface{}{"file": map[string]interface{}{"$exists": true, "$ne": ""}},
+				map[string]interface{}{"isNewVersion": true},
 				map[string]interface{}{"dfs": map[string]interface{}{"$exists": true, "$size": 0}},
 			},
 		},

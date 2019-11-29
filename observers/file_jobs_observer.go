@@ -1,6 +1,7 @@
 package observers
 
 import (
+	"context"
 	"fmt"
 	"github.com/PharbersDeveloper/bp-go-lib/kafka"
 	"github.com/PharbersDeveloper/bp-go-lib/kafka/record"
@@ -36,7 +37,6 @@ var (
 	kafkaBuilder *kafka.BpKafkaBuilder
 	producer     *kafka.BpProducer
 	consumer     *kafka.BpConsumer
-	//jobs         chan models.BpFile
 	jobStatus    chan map[string]string
 )
 
@@ -68,6 +68,9 @@ func (bfjo *BpFileJobsObserver) Exec() {
 	execLogger := log.NewLogicLoggerBuilder().Build()
 	execLogger.Info("start exec")
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	//查询Jobs
 	files, err := bfjo.queryJobs()
 	if err != nil {
@@ -78,15 +81,19 @@ func (bfjo *BpFileJobsObserver) Exec() {
 	execLogger.Info("jobs length=", length)
 
 	jobs := make(chan models.BpFile, length)
+	defer close(jobs)
+
 	//用作判断job是否完成的
 	jobStatus = make(chan map[string]string, 1)
-	jStatus := make(map[string]string, 0)
+	defer  close(jobStatus)
+
 	//初始化，存进jobStatus
+	jStatus := make(map[string]string, 0)
 	jobStatus <- jStatus
 
 	//分配worker执行Job
 	for id := 1; id <= bfjo.ParallelNumber; id++ {
-		go bfjo.worker(id, jobs)
+		go bfjo.worker(id, jobs, ctx)
 	}
 
 	//将file job push 到 chan队列
@@ -94,7 +101,7 @@ func (bfjo *BpFileJobsObserver) Exec() {
 	execLogger.Info("All jobs pushed done!")
 
 	//另起一个协程执行scheduleJob，定时刷新job队列
-	go bfjo.scheduleJob(jobs)
+	go bfjo.scheduleJob(jobs, ctx)
 
 	//启动监听返回值（阻塞当前线程）
 	err = consumer.Consume(bfjo.ResponseTopic, subscribeAvroFunc)
@@ -105,7 +112,7 @@ func (bfjo *BpFileJobsObserver) Exec() {
 
 func (bfjo *BpFileJobsObserver) Close() {
 	//close(jobs)
-	close(jobStatus)
+	//close(jobStatus)
 }
 
 func (bfjo *BpFileJobsObserver) queryJobs() ([]models.BpFile, error) {
@@ -155,7 +162,7 @@ func pushJobs(jobs chan<- models.BpFile, files []models.BpFile) {
 	}
 }
 
-func (bfjo *BpFileJobsObserver) worker(id int, jobs <-chan models.BpFile) {
+func (bfjo *BpFileJobsObserver) worker(id int, jobs <-chan models.BpFile, ctx context.Context) {
 	workerLogger := log.NewLogicLoggerBuilder().Build()
 	workerLogger.Info("worker", id, " standby!")
 
@@ -185,6 +192,10 @@ func (bfjo *BpFileJobsObserver) worker(id int, jobs <-chan models.BpFile) {
 		for locked {
 
 			select {
+			case <-ctx.Done():
+				//上层（调用协程的）结束，终止子协程
+				jobLogger.Info("worker", id, " stop job=", jobId, ", because context is done.")
+				return
 			case <-t.C:
 				//超时后不进行reDo，reDo会造成重复计算，设置超时策略
 				jobLogger.Info("worker", id, " run job=", jobId, " timeout.")
@@ -274,7 +285,7 @@ func (bfjo *BpFileJobsObserver) dealJobResult(jStatus map[string]string, jobId s
 
 }
 
-func (bfjo *BpFileJobsObserver) scheduleJob(jobs chan models.BpFile) {
+func (bfjo *BpFileJobsObserver) scheduleJob(jobs chan models.BpFile, ctx context.Context) {
 
 	//1. 设置ticker 循环时间
 	//2. 扫描当前的Jobs，确定job len为空，且jobStatus都为End
@@ -290,6 +301,10 @@ func (bfjo *BpFileJobsObserver) scheduleJob(jobs chan models.BpFile) {
 
 	for {
 		select {
+		case <-ctx.Done():
+			//上层（调用协程的）结束，终止子协程
+			logger.Info("Stop schedule because context is done.")
+			return
 		case <-t.C:
 			logger.Info("start schedule job ...")
 

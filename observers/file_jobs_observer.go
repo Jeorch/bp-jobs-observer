@@ -12,15 +12,17 @@ import (
 )
 
 type BpFileJobsObserver struct {
-	Id             string                 `json:"id"`
-	DBHost         string                 `json:"db_host"`
-	DBPort         string                 `json:"db_port"`
-	Database       string                 `json:"database"`
-	Collection     string                 `json:"collection"`
-	Conditions     map[string]interface{} `json:"conditions"`
-	ParallelNumber int                    `json:"parallel_number"`
-	RequestTopic   string                 `json:"request_topic"`
-	ResponseTopic  string                 `json:"response_topic"`
+	Id                     string                 `json:"id"`
+	DBHost                 string                 `json:"db_host"`
+	DBPort                 string                 `json:"db_port"`
+	Database               string                 `json:"database"`
+	Collection             string                 `json:"collection"`
+	Conditions             map[string]interface{} `json:"conditions"`
+	ParallelNumber         int                    `json:"parallel_number"`
+	SingleJobTimeoutSecond int64                    `json:"single_job_timeout_second"`
+	ScheduleDurationSecond int64                    `json:"schedule_duration_second"`
+	RequestTopic           string                 `json:"request_topic"`
+	ResponseTopic          string                 `json:"response_topic"`
 }
 
 const (
@@ -34,7 +36,7 @@ var (
 	kafkaBuilder *kafka.BpKafkaBuilder
 	producer     *kafka.BpProducer
 	consumer     *kafka.BpConsumer
-	jobs         chan models.BpFile
+	//jobs         chan models.BpFile
 	jobStatus    chan map[string]string
 )
 
@@ -75,7 +77,7 @@ func (bfjo *BpFileJobsObserver) Exec() {
 	length := len(files)
 	execLogger.Info("jobs length=", length)
 
-	jobs = make(chan models.BpFile, length)
+	jobs := make(chan models.BpFile, length)
 	//用作判断job是否完成的
 	jobStatus = make(chan map[string]string, 1)
 	jStatus := make(map[string]string, 0)
@@ -83,13 +85,16 @@ func (bfjo *BpFileJobsObserver) Exec() {
 	jobStatus <- jStatus
 
 	//分配worker执行Job
-	for w := 1; w <= bfjo.ParallelNumber; w++ {
-		go bfjo.worker(w, jobs)
+	for id := 1; id <= bfjo.ParallelNumber; id++ {
+		go bfjo.worker(id, jobs)
 	}
 
 	//将file job push 到 chan队列
 	pushJobs(jobs, files)
 	execLogger.Info("All jobs pushed done!")
+
+	//另起一个协程执行scheduleJob，定时刷新job队列
+	go bfjo.scheduleJob(jobs)
 
 	//启动监听返回值（阻塞当前线程）
 	err = consumer.Consume(bfjo.ResponseTopic, subscribeAvroFunc)
@@ -99,7 +104,7 @@ func (bfjo *BpFileJobsObserver) Exec() {
 }
 
 func (bfjo *BpFileJobsObserver) Close() {
-	close(jobs)
+	//close(jobs)
 	close(jobStatus)
 }
 
@@ -110,7 +115,7 @@ func (bfjo *BpFileJobsObserver) queryJobs() ([]models.BpFile, error) {
 	var assets []models.BpAsset
 	//err := dbSession.DB(bfjo.Database).C(bfjo.Collection).Find(bfjo.Conditions).All(&assets)
 	//临时测试12个
-	err := dbSession.DB(bfjo.Database).C(bfjo.Collection).Find(bfjo.Conditions).Limit(12).All(&assets)
+	err := dbSession.DB(bfjo.Database).C(bfjo.Collection).Find(bfjo.Conditions).Limit(5).All(&assets)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +147,7 @@ func (bfjo *BpFileJobsObserver) queryFile(id bson.ObjectId) (models.BpFile, erro
 	return file, err
 }
 
-func pushJobs(jobs chan<- models.BpFile, files []models.BpFile)  {
+func pushJobs(jobs chan<- models.BpFile, files []models.BpFile) {
 	logger := log.NewLogicLoggerBuilder().Build()
 	logger.Info("push jobs to chan")
 	for _, file := range files {
@@ -155,14 +160,11 @@ func (bfjo *BpFileJobsObserver) worker(id int, jobs <-chan models.BpFile) {
 	workerLogger.Info("worker", id, " standby!")
 
 	//设置等待超时
-	//t := time.NewTimer(6 * time.Hour) // 单个Job等待最高6小时
-	d := 11 * time.Second
-	t := time.NewTimer(d) // 测试使用：单个Job等待最高6s
+	d := time.Duration(bfjo.SingleJobTimeoutSecond) * time.Second
+	t := time.NewTimer(d) // 测试使用：单个Job等待时长
 
 	for j := range jobs {
 
-		//取出jobStatus
-		jStatus := <- jobStatus
 		jobId := j.Id.Hex()
 		jobLogger := log.NewLogicLoggerBuilder().SetJobId(jobId).Build()
 
@@ -172,6 +174,9 @@ func (bfjo *BpFileJobsObserver) worker(id int, jobs <-chan models.BpFile) {
 		if err != nil {
 			panic(err)
 		}
+
+		//取出jobStatus
+		jStatus := <-jobStatus
 		jStatus[jobId] = JOB_RUN
 		//存进jobStatus
 		jobStatus <- jStatus
@@ -236,7 +241,7 @@ func subscribeAvroFunc(key interface{}, value interface{}) {
 	logger.Infof("response => key=%s, value=%v\n", string(key.([]byte)), response)
 	jobId := response.JobId
 	//取出jobStatus
-	jStatus := <- jobStatus
+	jStatus := <-jobStatus
 	if jStatus[jobId] == JOB_RUN {
 		jStatus[jobId] = JOB_END
 	}
@@ -269,7 +274,7 @@ func (bfjo *BpFileJobsObserver) dealJobResult(jStatus map[string]string, jobId s
 
 }
 
-func (bfjo *BpFileJobsObserver) scheduleJob(d time.Duration) {
+func (bfjo *BpFileJobsObserver) scheduleJob(jobs chan models.BpFile) {
 
 	//1. 设置ticker 循环时间
 	//2. 扫描当前的Jobs，确定job len为空，且jobStatus都为End
@@ -278,6 +283,8 @@ func (bfjo *BpFileJobsObserver) scheduleJob(d time.Duration) {
 
 	logger := log.NewLogicLoggerBuilder().Build()
 
+	//设置时间周期
+	d := time.Duration(bfjo.ScheduleDurationSecond) * time.Second
 	t := time.NewTimer(d)
 	defer t.Stop()
 
@@ -286,7 +293,7 @@ func (bfjo *BpFileJobsObserver) scheduleJob(d time.Duration) {
 		case <-t.C:
 			logger.Info("start schedule job ...")
 
-			scanCurrentJobs()
+			scanCurrentJobs(jobs)
 
 			//查询Jobs
 			files, err := bfjo.queryJobs()
@@ -297,7 +304,6 @@ func (bfjo *BpFileJobsObserver) scheduleJob(d time.Duration) {
 			length := len(files)
 			logger.Info("jobs length=", length)
 
-			jobs = make(chan models.BpFile, length)
 			pushJobs(jobs, files)
 
 			// need reset timer
@@ -308,19 +314,19 @@ func (bfjo *BpFileJobsObserver) scheduleJob(d time.Duration) {
 
 }
 
-func scanCurrentJobs()  {
+func scanCurrentJobs(jobs chan models.BpFile) {
 
 	logger := log.NewLogicLoggerBuilder().Build()
 	logger.Info("Start scan current jobs")
 	jobsChanNotEmpty := len(jobs) != 0
 	jobsIsRunning := true
 	//1. 每隔1s查询一次jobs chan 是否为空
-	for jobsChanNotEmpty  {
+	for jobsChanNotEmpty {
 		time.Sleep(time.Second)
 		jobsChanNotEmpty = len(jobs) != 0
 	}
 	//2. 每隔1s查询JobStatus的状态
-	for jobsIsRunning  {
+	for jobsIsRunning {
 		time.Sleep(time.Second)
 		jobsIsRunning = checkJobsIsRunning()
 	}
@@ -330,11 +336,16 @@ func scanCurrentJobs()  {
 
 func checkJobsIsRunning() bool {
 
+	//取出jobStatus
 	jStatus := <-jobStatus
 	for _, status := range jStatus {
 		if status == JOB_RUN {
+			//存进jobStatus
+			jobStatus <- jStatus
 			return true
 		}
 	}
+	//存进jobStatus
+	jobStatus <- jStatus
 	return false
 }

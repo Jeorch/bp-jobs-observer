@@ -1,6 +1,8 @@
 package observers
 
 import (
+	"context"
+	"fmt"
 	"github.com/PharbersDeveloper/bp-jobs-observer/test"
 	"testing"
 )
@@ -30,5 +32,42 @@ func TestBpFileJobsObserver_Open_Exec(t *testing.T) {
 	}
 	bfjo.Open()
 	bfjo.Exec()
+
+}
+
+func TestContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	defer cancel()
+	//defer func() {
+	//	if r := recover(); r != nil {
+	//		fmt.Println("Recovered in f", r)
+	//	}
+	//}()
+
+	go p(ctx)
+
+	panic("aaa")
+
+	select {
+	case <-ctx.Done():
+		fmt.Println("main", ctx.Err())
+	}
+
+
+}
+
+func p(ctx context.Context)  {
+
+	fmt.Println("ppp")
+	select {
+	case <-ctx.Done():
+		fmt.Println("handle", ctx.Err())
+	}
+	fmt.Println("ppp done")
+
+}
+
+func TestReSetMaxConf(t *testing.T) {
 
 }

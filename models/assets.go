@@ -76,6 +76,12 @@ type BpAsset struct {
 	TraceId     string        `json:"traceId" bson:"traceId"`
 	Name        string        `json:"name"`
 	Description string        `json:"description"`
+	Providers   []string      `json:"providers" bson:"providers"`
+	Markets     []string      `json:"markets" bson:"markets"`
+	Molecules   []string      `json:"molecules" bson:"molecules"`
+	DataCover   []string      `json:"dataCover" bson:"dataCover"`
+	GeoCover    []string      `json:"geoCover" bson:"geoCover"`
+	Labels      []string      `json:"labels"`
 	File        bson.ObjectId `json:"file"`
 	Dfs         []interface{} `json:"dfs"`
 }

@@ -23,9 +23,9 @@ func main() {
 			},
 		},
 		ParallelNumber:         1,
-		SingleJobTimeoutSecond: 10,
-		ScheduleDurationSecond: 60,
-		RequestTopic:           "test006",
+		SingleJobTimeoutSecond: 60,
+		ScheduleDurationSecond: 36000,
+		RequestTopic:           "oss_task_submit",
 		ResponseTopic:          "test007",
 	}
 	bfjo.Open()

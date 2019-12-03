@@ -7,6 +7,7 @@ import (
 	"github.com/PharbersDeveloper/bp-go-lib/log"
 	"github.com/PharbersDeveloper/bp-jobs-observer/models"
 	"github.com/PharbersDeveloper/bp-jobs-observer/models/record"
+	"github.com/hashicorp/go-uuid"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 	"time"
@@ -36,8 +37,8 @@ var (
 	dbSession    *mgo.Session
 	kafkaBuilder *kafka.BpKafkaBuilder
 	producer     *kafka.BpProducer
-	//consumer     *kafka.BpConsumer
-	//jobStatus    chan map[string]string
+	consumer     *kafka.BpConsumer
+	jobStatus    chan map[string]string
 )
 
 func (bfjo *BpFileJobsObserver) Open() {
@@ -49,7 +50,7 @@ func (bfjo *BpFileJobsObserver) Open() {
 	sess, err := mgo.DialWithInfo(mongoDBDialInfo)
 	if err != nil {
 		sess.Refresh()
-		panic(err)
+		log.NewLogicLoggerBuilder().Build().Error(err.Error())
 	}
 	sess.SetMode(mgo.Monotonic, true)
 
@@ -57,9 +58,9 @@ func (bfjo *BpFileJobsObserver) Open() {
 
 	kafkaBuilder = kafka.NewKafkaBuilder()
 	producer, err = kafkaBuilder.BuildProducer()
-	//consumer, err = kafkaBuilder.SetGroupId(bfjo.Id).BuildConsumer()
+	consumer, err = kafkaBuilder.SetGroupId(bfjo.Id).BuildConsumer()
 	if err != nil {
-		panic(err.Error())
+		log.NewLogicLoggerBuilder().Build().Error(err.Error())
 	}
 
 }
@@ -74,7 +75,7 @@ func (bfjo *BpFileJobsObserver) Exec() {
 	//查询Jobs
 	jobs, err := bfjo.queryJobs()
 	if err != nil {
-		panic(err.Error())
+		execLogger.Error(err.Error())
 	}
 
 	length := len(jobs)
@@ -83,13 +84,13 @@ func (bfjo *BpFileJobsObserver) Exec() {
 	jobChan := make(chan record.OssTask, length)
 	defer close(jobChan)
 
-	////用作判断job是否完成的
-	//jobStatus = make(chan map[string]string, 1)
-	//defer  close(jobStatus)
-	//
-	////初始化，存进jobStatus
-	//jStatus := make(map[string]string, 0)
-	//jobStatus <- jStatus
+	//用作判断job是否完成的
+	jobStatus = make(chan map[string]string, 1)
+	defer  close(jobStatus)
+
+	//初始化，存进jobStatus
+	jStatus := make(map[string]string, 0)
+	jobStatus <- jStatus
 
 	//分配worker执行Job
 	for id := 1; id <= bfjo.ParallelNumber; id++ {
@@ -103,12 +104,12 @@ func (bfjo *BpFileJobsObserver) Exec() {
 	//另起一个协程执行scheduleJob，定时刷新job队列
 	go bfjo.scheduleJob(jobChan, ctx)
 
-	////启动监听返回值（阻塞当前线程）
-	//err = consumer.Consume(bfjo.ResponseTopic, subscribeAvroFunc)
-	select {
-	case <-ctx.Done():
-		execLogger.Info("Exec context done!")
-	}
+	//启动监听返回值（阻塞当前线程）
+	err = consumer.Consume(bfjo.ResponseTopic, subscribeAvroFunc)
+	//select {
+	//case <-ctx.Done():
+	//	execLogger.Info("Exec context done!")
+	//}
 
 	//bfjo.Close()
 	execLogger.Info("End!")
@@ -124,9 +125,9 @@ func (bfjo *BpFileJobsObserver) queryJobs() ([]record.OssTask, error) {
 	logger := log.NewLogicLoggerBuilder().Build()
 	logger.Info("query jobs from db")
 	var assets []models.BpAsset
-	err := dbSession.DB(bfjo.Database).C(bfjo.Collection).Find(bfjo.Conditions).All(&assets)
+	//err := dbSession.DB(bfjo.Database).C(bfjo.Collection).Find(bfjo.Conditions).All(&assets)
 	//临时测试12个
-	//err := dbSession.DB(bfjo.Database).C(bfjo.Collection).Find(bfjo.Conditions).Limit(5).All(&assets)
+	err := dbSession.DB(bfjo.Database).C(bfjo.Collection).Find(bfjo.Conditions).Limit(5).All(&assets)
 	if err != nil {
 		return nil, err
 	}
@@ -191,55 +192,70 @@ func (bfjo *BpFileJobsObserver) worker(id int, jobChan <-chan record.OssTask, ct
 
 	for j := range jobChan {
 
-		jobId := j.JobId
+		//TODO: 由于asset是以traceId为区分，jobId未使用，这里自动化Job以traceId作为JobId
+		jobId := j.TraceId
 		traceId := j.TraceId
+
+		//压测使用
+		{
+			newTraceId, err := bfjo.updateTraceId(traceId)
+			if err != nil {
+				workerLogger.Error(err.Error())
+			}
+			jobId = newTraceId
+			traceId = newTraceId
+			j.JobId = newTraceId
+			j.TraceId = newTraceId
+		}
+
 		jobLogger := log.NewLogicLoggerBuilder().SetTraceId(traceId).SetJobId(jobId).Build()
 
 		//send job request
 		jobLogger.Infof("worker-%d started  job=%v", id,  j)
 		err := sendJobRequest(bfjo.RequestTopic, j)
 		if err != nil {
-			panic(err)
+			jobLogger.Error(err.Error())
 		}
 
-		//测试使用，不接收返回值，每隔1min发一条请求
-		select {
-		case <-t.C:
-			t.Reset(d)
+		//取出jobStatus
+		jStatus := <-jobStatus
+		jStatus[jobId] = JOB_RUN
+		//存进jobStatus
+		jobStatus <- jStatus
+
+		locked := true
+		for locked {
+
+			select {
+			case <-ctx.Done():
+				//上层（调用协程的）结束，终止子协程
+				jobLogger.Info("worker", id, " stop job=", jobId, ", because context is done.")
+				return
+			case <-t.C:
+				//超时后不进行reDo，reDo会造成重复计算，设置超时策略
+				jobLogger.Info("worker", id, " run job=", jobId, " timeout.")
+				//暂时超时后，就不管这个jobId了
+				//取出jobStatus
+				jStatus := <-jobStatus
+				delete(jStatus, jobId)
+				//存进jobStatus
+				jobStatus <- jStatus
+				locked = false
+			//取出jobStatus
+			case jStatus := <-jobStatus:
+				//根据job status执行不同case
+				done := bfjo.dealJobResult(jStatus, jobId)
+				if done {
+					locked = false
+					jobLogger.Info("worker", id, " finished job=", jobId)
+				}
+				//存进jobStatus
+				jobStatus <- jStatus
+				time.Sleep(time.Second)
+			}
+
 		}
-
-		////取出jobStatus
-		//jStatus := <-jobStatus
-		//jStatus[jobId] = JOB_RUN
-		////存进jobStatus
-		//jobStatus <- jStatus
-
-		//locked := true
-		//for locked {
-		//
-		//	select {
-		//	case <-ctx.Done():
-		//		//上层（调用协程的）结束，终止子协程
-		//		jobLogger.Info("worker", id, " stop job=", jobId, ", because context is done.")
-		//		return
-		//	case <-t.C:
-		//		//超时后不进行reDo，reDo会造成重复计算，设置超时策略
-		//		jobLogger.Info("worker", id, " run job=", jobId, " timeout.")
-		//		locked = false
-		//	//取出jobStatus
-		//	case jStatus := <-jobStatus:
-		//		//根据job status执行不同case
-		//		done := bfjo.dealJobResult(jStatus, jobId)
-		//		if done {
-		//			locked = false
-		//			jobLogger.Info("worker", id, " finished job=", jobId)
-		//		}
-		//		//存进jobStatus
-		//		jobStatus <- jStatus
-		//	}
-		//
-		//}
-		//t.Reset(d)
+		t.Reset(d)
 
 	}
 
@@ -259,31 +275,35 @@ func sendJobRequest(topic string, job record.OssTask) error {
 
 func subscribeAvroFunc(key interface{}, value interface{}) {
 
-	//var response record.ExampleResponse
-	////注意传参为record的地址
-	//err := kafka.DecodeAvroRecord(value.([]byte), &response)
-	//if err != nil {
-	//	panic(err.Error())
-	//}
-	//logger := log.NewLogicLoggerBuilder().SetJobId(response.JobId).Build()
-	//logger.Infof("response => key=%s, value=%v\n", string(key.([]byte)), response)
-	//jobId := response.JobId
-	////取出jobStatus
-	//jStatus := <-jobStatus
-	//if jStatus[jobId] == JOB_RUN {
-	//	jStatus[jobId] = JOB_END
-	//}
-	//if response.Error != "" {
-	//	jStatus[jobId] = JOB_ERROR
-	//}
-	//logger.Infof("response => jStatus=%v\n", jStatus)
-	////存进jobStatus
-	//jobStatus <- jStatus
+	var response record.OssTaskResult
+	//注意传参为record的地址
+	err := kafka.DecodeAvroRecord(value.([]byte), &response)
+	if err != nil {
+		log.NewLogicLoggerBuilder().Build().Error(err.Error())
+	}
+
+	//TODO: 由于asset是以traceId为区分，jobId未使用，这里自动化Job以traceId作为JobId
+	jobId := response.TraceId
+	traceId := response.TraceId
+	logger := log.NewLogicLoggerBuilder().SetTraceId(traceId).SetJobId(jobId).Build()
+	logger.Infof("response => key=%s, value=%v\n", string(key.([]byte)), response)
+
+	//取出jobStatus
+	jStatus := <-jobStatus
+	if jStatus[jobId] == JOB_RUN {
+		jStatus[jobId] = JOB_END
+	}
+	if response.Error != "" {
+		jStatus[jobId] = JOB_ERROR
+	}
+	logger.Infof("response => jStatus=%v\n", jStatus)
+	//存进jobStatus
+	jobStatus <- jStatus
 }
 
 func (bfjo *BpFileJobsObserver) dealJobResult(jStatus map[string]string, jobId string) (done bool) {
 
-	//logger := log.NewLogicLoggerBuilder().SetJobId(jobId).Build()
+	logger := log.NewLogicLoggerBuilder().SetJobId(jobId).Build()
 
 	status, ok := jStatus[jobId]
 
@@ -291,7 +311,7 @@ func (bfjo *BpFileJobsObserver) dealJobResult(jStatus map[string]string, jobId s
 		switch status {
 		case JOB_RUN:
 		case JOB_END:
-			//logger.Infof("job=%s is done.", jobId)
+			logger.Infof("job=%s is done.", jobId)
 			done = true
 		case JOB_ERROR:
 		}
@@ -327,10 +347,13 @@ func (bfjo *BpFileJobsObserver) scheduleJob(jobChan chan record.OssTask, ctx con
 
 			scanCurrentJobs(jobChan)
 
+			//压测使用，更新traceId，将dfs置空
+			bfjo.restartJobChan()
+
 			//查询Jobs
 			files, err := bfjo.queryJobs()
 			if err != nil {
-				panic(err.Error())
+				logger.Error(err.Error())
 			}
 
 			length := len(files)
@@ -368,16 +391,68 @@ func scanCurrentJobs(jobChan chan record.OssTask) {
 
 func checkJobsIsRunning() bool {
 
-	////取出jobStatus
-	//jStatus := <-jobStatus
-	//for _, status := range jStatus {
-	//	if status == JOB_RUN {
-	//		//存进jobStatus
-	//		jobStatus <- jStatus
-	//		return true
-	//	}
-	//}
-	////存进jobStatus
-	//jobStatus <- jStatus
+	//取出jobStatus
+	jStatus := <-jobStatus
+	for _, status := range jStatus {
+		if status == JOB_RUN {
+			//存进jobStatus
+			jobStatus <- jStatus
+			return true
+		}
+	}
+	//存进jobStatus
+	jobStatus <- jStatus
 	return false
+}
+
+//压测使用
+func (bfjo *BpFileJobsObserver) restartJobChan() {
+
+	//取出jobStatus
+	jStatus := <-jobStatus
+	for jobId, _ := range jStatus {
+		bfjo.updateDfs(jobId)
+	}
+	//重新初始化，存进jobStatus
+	jStatus = make(map[string]string, 0)
+	jobStatus <- jStatus
+
+}
+
+//压测使用
+func (bfjo *BpFileJobsObserver) updateTraceId(jobId string) (newJobId string, err error) {
+
+	//TODO: 由于asset是以traceId为区分，jobId未使用，这里自动化Job以traceId作为JobId
+	traceId := jobId
+	var asset models.BpAsset
+	err = dbSession.DB(bfjo.Database).C(bfjo.Collection).Find(bson.M{"traceId": traceId}).One(&asset)
+	if err != nil {
+		return "", err
+	}
+
+	newTraceId, err := uuid.GenerateUUID()
+	asset.TraceId = newTraceId
+
+	err = dbSession.DB(bfjo.Database).C(bfjo.Collection).UpdateId(asset.Id, asset)
+	return newTraceId, err
+}
+
+//压测使用
+func (bfjo *BpFileJobsObserver) updateDfs(jobId string) {
+
+	//TODO: 由于asset是以traceId为区分，jobId未使用，这里自动化Job以traceId作为JobId
+	traceId := jobId
+	logger := log.NewLogicLoggerBuilder().SetJobId(jobId).SetTraceId(traceId).Build()
+	var asset models.BpAsset
+	err := dbSession.DB(bfjo.Database).C(bfjo.Collection).Find(bson.M{"traceId": traceId}).One(&asset)
+	if err != nil {
+		logger.Error(err.Error())
+	}
+
+	asset.Dfs = nil
+
+	err = dbSession.DB(bfjo.Database).C(bfjo.Collection).UpdateId(asset.Id, asset)
+	if err != nil {
+		logger.Error(err.Error())
+	}
 }

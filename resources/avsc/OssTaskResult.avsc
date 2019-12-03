@@ -1,0 +1,23 @@
+{
+  "type": "record",
+  "name": "OssTaskResult",
+  "namespace": "com.pharbers.kafka.schema",
+  "fields": [
+    {
+      "name": "jobId",
+      "type": "string"
+    },
+    {
+      "name": "traceId",
+      "type": "string"
+    },
+    {
+      "name": "progress",
+      "type": "long"
+    },
+    {
+      "name": "error",
+      "type": "string"
+    }
+  ]
+}

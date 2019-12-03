@@ -72,16 +72,22 @@ import "gopkg.in/mgo.v2/bson"
 //    "__v" : NumberInt(0)
 
 type BpAsset struct {
-	Id          bson.ObjectId `json:"-" bson:"_id"`
-	TraceId     string        `json:"traceId" bson:"traceId"`
-	Name        string        `json:"name"`
-	Description string        `json:"description"`
-	Providers   []string      `json:"providers" bson:"providers"`
-	Markets     []string      `json:"markets" bson:"markets"`
-	Molecules   []string      `json:"molecules" bson:"molecules"`
-	DataCover   []string      `json:"dataCover" bson:"dataCover"`
-	GeoCover    []string      `json:"geoCover" bson:"geoCover"`
-	Labels      []string      `json:"labels"`
-	File        bson.ObjectId `json:"file"`
-	Dfs         []interface{} `json:"dfs"`
+	Id            bson.ObjectId `json:"-" bson:"_id"`
+	TraceId       string        `json:"traceId" bson:"traceId"`
+	Name          string        `json:"name"`
+	Description   string        `json:"description"`
+	Owner         string        `json:"name"`
+	Accessibility string        `json:"accessibility" bson:"accessibility"`
+	Version       int32         `json:"version" bson:"version"`
+	IsNewVersion  bool          `json:"isNewVersion" bson:"isNewVersion"`
+	DataType      string        `json:"dataType" bson:"dataType"`
+	Providers     []string      `json:"providers" bson:"providers"`
+	Markets       []string      `json:"markets" bson:"markets"`
+	Molecules     []string      `json:"molecules" bson:"molecules"`
+	DataCover     []string      `json:"dataCover" bson:"dataCover"`
+	GeoCover      []string      `json:"geoCover" bson:"geoCover"`
+	Labels        []string      `json:"labels"`
+	File          bson.ObjectId `json:"file"`
+	Dfs           []interface{} `json:"dfs"`
+	V             int32         `json:"__v" bson:"__v"`
 }

@@ -10,7 +10,7 @@ func main() {
 	setEnv()
 
 	bfjo := observers.BpFileJobsObserver{
-		Id:         "test007",
+		Id:         "0000001",
 		DBHost:     "59.110.31.50",
 		DBPort:     "5555",
 		Database:   "pharbers-sandbox-600",
@@ -23,10 +23,10 @@ func main() {
 			},
 		},
 		ParallelNumber:         1,
-		SingleJobTimeoutSecond: 60,
-		ScheduleDurationSecond: 36000,
+		SingleJobTimeoutSecond: 120,
+		ScheduleDurationSecond: 600,
 		RequestTopic:           "oss_task_submit",
-		ResponseTopic:          "test007",
+		ResponseTopic:          "oss_task_response",
 	}
 	bfjo.Open()
 	bfjo.Exec()

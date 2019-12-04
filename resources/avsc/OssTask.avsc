@@ -19,6 +19,10 @@
       "type": "string"
     },
     {
+      "name": "assetId",
+      "type": "string"
+    },
+    {
       "name": "ossKey",
       "type": "string"
     },

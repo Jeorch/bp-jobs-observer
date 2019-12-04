@@ -3,7 +3,7 @@ module github.com/PharbersDeveloper/bp-jobs-observer
 go 1.12
 
 require (
-	github.com/PharbersDeveloper/bp-go-lib v0.2.4
+	github.com/PharbersDeveloper/bp-go-lib v0.3.0
 	github.com/actgardner/gogen-avro v6.1.0+incompatible
 	github.com/hashicorp/go-uuid v1.0.1
 	github.com/kr/pretty v0.1.0 // indirect

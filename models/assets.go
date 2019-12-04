@@ -73,7 +73,6 @@ import "gopkg.in/mgo.v2/bson"
 
 type BpAsset struct {
 	Id            bson.ObjectId `json:"-" bson:"_id"`
-	TraceId       string        `json:"traceId" bson:"traceId"`
 	Name          string        `json:"name"`
 	Description   string        `json:"description"`
 	Owner         string        `json:"name"`

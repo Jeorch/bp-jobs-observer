@@ -2,14 +2,14 @@ package main
 
 import (
 	"github.com/PharbersDeveloper/bp-go-lib/env"
-	"github.com/PharbersDeveloper/bp-jobs-observer/observers"
+	"github.com/PharbersDeveloper/bp-jobs-observer/observers/oss_task_observer"
 	"os"
 )
 
 func main() {
 	setEnv()
 
-	bfjo := observers.BpFileJobsObserver{
+	bfjo := oss_task_observer.ObserverInfo{
 		Id:         "0000001",
 		DBHost:     "59.110.31.50",
 		DBPort:     "5555",
@@ -23,8 +23,8 @@ func main() {
 			},
 		},
 		ParallelNumber:         1,
-		SingleJobTimeoutSecond: 120,
-		ScheduleDurationSecond: 600,
+		SingleJobTimeoutSecond: 10,
+		ScheduleDurationSecond: 10,
 		RequestTopic:           "oss_task_submit",
 		ResponseTopic:          "oss_task_response",
 	}
@@ -45,4 +45,10 @@ func setEnv() {
 	//kafka
 	_ = os.Setenv(env.KafkaConfigPath, "resources/kafka_config.json")
 	_ = os.Setenv(env.KafkaSchemaRegistryUrl, "http://123.56.179.133:8081")
+
+	//redis
+	_ = os.Setenv(env.RedisHost, "192.168.100.176")
+	_ = os.Setenv(env.RedisPort, "6379")
+	_ = os.Setenv(env.RedisPass, "")
+	_ = os.Setenv(env.RedisDb, "0")
 }

@@ -23,8 +23,8 @@ func main() {
 			},
 		},
 		ParallelNumber:         1,
-		SingleJobTimeoutSecond: 10,
-		ScheduleDurationSecond: 10,
+		SingleJobTimeoutSecond: 3600,
+		ScheduleDurationSecond: 3600,
 		RequestTopic:           "oss_task_submit",
 		ResponseTopic:          "oss_task_response",
 	}
@@ -38,8 +38,8 @@ func setEnv() {
 
 	//log
 	_ = os.Setenv(env.LogTimeFormat, "2006-01-02 15:04:05")
-	_ = os.Setenv(env.LogOutput, "console")
-	//_ = os.Setenv(env.LogOutput, "./tmp/bp-jobs-observer.log")
+	//_ = os.Setenv(env.LogOutput, "console")
+	_ = os.Setenv(env.LogOutput, "./logs/bp-jobs-observer.log")
 	_ = os.Setenv(env.LogLevel, "info")
 
 	//kafka

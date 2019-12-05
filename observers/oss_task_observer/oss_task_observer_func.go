@@ -17,11 +17,15 @@ func (observer *ObserverInfo) queryJobs() ([]record.OssTask, error) {
 
 	logger := log.NewLogicLoggerBuilder().Build()
 	logger.Info("query jobs from db")
+
 	var assets []models.BpAsset
-	err := dbSession.DB(observer.Database).C(observer.Collection).Find(observer.Conditions).Limit(2).All(&assets)
+	//err := dbSession.DB(observer.Database).C(observer.Collection).Find(observer.Conditions).Limit(observer.ParallelNumber).All(&assets)
+	err := dbSession.DB(observer.Database).C(observer.Collection).Find(observer.Conditions).All(&assets)
 	if err != nil {
 		return nil, err
 	}
+
+	expired := time.Duration(observer.SingleJobTimeoutSecond) * time.Second
 
 	jobs := make([]record.OssTask, 0)
 	for _, asset := range assets {
@@ -44,6 +48,13 @@ func (observer *ObserverInfo) queryJobs() ([]record.OssTask, error) {
 				return nil, e
 			}
 			logger.Infof("将assetId=%s的asset加入job队列，redis inc count=%d", assetId, count)
+
+			ok, e := utils.SetKeyExpire(assetId, expired)
+			if !ok {
+				logger.Infof("设置assetId=%s过期时间失败，尝试重新设置过期时间", assetId)
+				_, _ = utils.SetKeyExpire(assetId, expired)
+			}
+
 			//TODO:此处为拼接Job
 			//TODO:此处使用UUID生成JobId
 			newId, err := uuid.GenerateUUID()
@@ -98,21 +109,28 @@ func (observer *ObserverInfo) worker(id int, jobChan <-chan record.OssTask, ctx 
 	workerLogger := log.NewLogicLoggerBuilder().Build()
 	workerLogger.Info("worker", id, " standby!")
 
-	for j := range jobChan {
+	for {
+		select {
+		case <-ctx.Done():
+			workerLogger.Infof("worker-%d stop", id)
+			return
+		case j := <-jobChan:
+			{
+				//TODO: 由于asset是以traceId为区分，jobId未使用，这里自动化Job以traceId作为JobId
+				jobId := j.TraceId
+				traceId := j.TraceId
 
-		//TODO: 由于asset是以traceId为区分，jobId未使用，这里自动化Job以traceId作为JobId
-		jobId := j.TraceId
-		traceId := j.TraceId
+				jobLogger := log.NewLogicLoggerBuilder().SetTraceId(traceId).SetJobId(jobId).Build()
+				jobLogger.Infof("worker-%d start job=%v", id, j)
 
-		jobLogger := log.NewLogicLoggerBuilder().SetTraceId(traceId).SetJobId(jobId).Build()
-		jobLogger.Infof("worker-%d start job=%v", id, j)
-
-		//send job request
-		err := sendJobRequest(observer.RequestTopic, j)
-		if err != nil {
-			jobLogger.Error(err.Error())
+				//send job request
+				err := sendJobRequest(observer.RequestTopic, j)
+				if err != nil {
+					jobLogger.Error(err.Error())
+				}
+				jobLogger.Infof("worker-%d sanded job=%v", id, j)
+			}
 		}
-		jobLogger.Infof("worker-%d sanded job=%v", id, j)
 
 	}
 

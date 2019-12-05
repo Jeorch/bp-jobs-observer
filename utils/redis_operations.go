@@ -2,6 +2,7 @@ package utils
 
 import (
 	"github.com/PharbersDeveloper/bp-go-lib/redis"
+	"time"
 )
 
 func AddKey2Redis(key string) (count int64, err error) {
@@ -10,6 +11,15 @@ func AddKey2Redis(key string) (count int64, err error) {
 		return
 	}
 	count, err = c.Incr(key).Result()
+	return
+}
+
+func SetKeyExpire(key string, duration time.Duration) (ok bool, err error) {
+	c, err := redis.GetRedisClient()
+	if err != nil {
+		return
+	}
+	ok, err = c.Expire(key, duration).Result()
 	return
 }
 

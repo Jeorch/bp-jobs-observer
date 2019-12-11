@@ -1,4 +1,4 @@
-package oss_task_observer
+package observer_oss_task
 
 import (
 	"context"
@@ -146,27 +146,6 @@ func sendJobRequest(topic string, job record.OssTask) error {
 
 	err = producer.Produce(topic, []byte(job.TraceId), specificRecordByteArr)
 	return err
-}
-
-func (observer *ObserverInfo) dealJobResult(jStatus map[string]string, jobId string) (done bool) {
-
-	logger := log.NewLogicLoggerBuilder().SetJobId(jobId).Build()
-
-	status, ok := jStatus[jobId]
-
-	if ok {
-		switch status {
-		case JOB_RUN:
-		case JOB_END:
-			logger.Infof("job=%s is done.", jobId)
-			done = true
-		case JOB_ERROR:
-		}
-
-	}
-
-	return
-
 }
 
 func (observer *ObserverInfo) scheduleJob(jobChan chan record.OssTask, ctx context.Context) {

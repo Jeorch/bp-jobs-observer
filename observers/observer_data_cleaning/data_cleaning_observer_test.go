@@ -1,32 +1,31 @@
-package main
+package observer_data_cleaning
 
 import (
 	"github.com/PharbersDeveloper/bp-go-lib/env"
-	"github.com/PharbersDeveloper/bp-jobs-observer/observers/observer_oss_task"
 	"os"
+	"testing"
 )
 
-func main() {
+func TestStartDataCleanObserver(t *testing.T) {
 	setEnv()
 
-	bfjo := observer_oss_task.ObserverInfo{
+	bfjo := ObserverInfo{
 		Id:         "0000001",
 		DBHost:     "59.110.31.50",
 		DBPort:     "5555",
 		Database:   "pharbers-sandbox-600",
-		Collection: "assets",
+		Collection: "datasets",
 		Conditions: map[string]interface{}{
 			"$and": []map[string]interface{}{
-				map[string]interface{}{"file": map[string]interface{}{"$exists": true, "$ne": ""}},
-				map[string]interface{}{"isNewVersion": true},
-				map[string]interface{}{"dfs": map[string]interface{}{"$exists": true, "$size": 0}},
+				map[string]interface{}{"url": map[string]interface{}{"$exists": true, "$ne": ""}},
+				map[string]interface{}{"description": "Python 清洗 Job"},
 			},
 		},
 		ParallelNumber:         1,
 		SingleJobTimeoutSecond: 3600,
 		ScheduleDurationSecond: 3600,
-		RequestTopic:           "oss_task_submit",
-		ResponseTopic:          "oss_task_response",
+		RequestTopic:           "HiveTask",
+		ResponseTopic:          "HiveTaskResponse",
 	}
 	bfjo.Open()
 	bfjo.Exec()
@@ -43,7 +42,7 @@ func setEnv() {
 	_ = os.Setenv(env.LogLevel, "info")
 
 	//kafka
-	_ = os.Setenv(env.KafkaConfigPath, "resources/kafka_config.json")
+	_ = os.Setenv(env.KafkaConfigPath, "../../resources/kafka_config.json")
 	_ = os.Setenv(env.KafkaSchemaRegistryUrl, "http://123.56.179.133:8081")
 
 	//redis

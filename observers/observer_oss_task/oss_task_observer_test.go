@@ -1,4 +1,4 @@
-package oss_task_observer
+package observer_oss_task
 
 import (
 	"context"
@@ -57,38 +57,6 @@ func TestMgoDialInfo(t *testing.T) {
 	case <-ctx.Done():
 		fmt.Println("End")
 	}
-
-}
-
-func TestContext(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	defer cancel()
-	//defer func() {
-	//	if r := recover(); r != nil {
-	//		fmt.Println("Recovered in f", r)
-	//	}
-	//}()
-
-	go p(ctx)
-
-	panic("aaa")
-
-	select {
-	case <-ctx.Done():
-		fmt.Println("main", ctx.Err())
-	}
-
-}
-
-func p(ctx context.Context) {
-
-	fmt.Println("ppp")
-	select {
-	case <-ctx.Done():
-		fmt.Println("handle", ctx.Err())
-	}
-	fmt.Println("ppp done")
 
 }
 

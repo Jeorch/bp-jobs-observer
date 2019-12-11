@@ -1,4 +1,4 @@
-package oss_task_observer
+package observer_data_cleaning
 
 import (
 	"context"
@@ -23,12 +23,6 @@ type ObserverInfo struct {
 	RequestTopic           string                 `json:"request_topic"`
 	ResponseTopic          string                 `json:"response_topic"`
 }
-
-const (
-	JOB_RUN   = "run"
-	JOB_END   = "end"
-	JOB_ERROR = "error"
-)
 
 var (
 	dbSession    *mgo.Session
@@ -76,7 +70,7 @@ func (observer *ObserverInfo) Exec() {
 	length := len(jobs)
 	execLogger.Info("jobs length=", length)
 
-	jobChan := make(chan record.OssTask, length)
+	jobChan := make(chan record.HiveTask, length)
 	defer close(jobChan)
 
 	//分配worker执行Job
@@ -101,6 +95,5 @@ func (observer *ObserverInfo) Exec() {
 }
 
 func (observer *ObserverInfo) Close() {
-	//close(jobChan)
-	//close(jobStatus)
+
 }

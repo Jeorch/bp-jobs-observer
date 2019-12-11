@@ -100,8 +100,8 @@ func (observer *ObserverInfo) queryFile(id bson.ObjectId) (models.BpFile, error)
 func pushJobs(jobChan chan<- record.OssTask, jobs []record.OssTask) {
 	logger := log.NewLogicLoggerBuilder().Build()
 	logger.Info("push jobs to chan")
-	for _, file := range jobs {
-		jobChan <- file
+	for _, job := range jobs {
+		jobChan <- job
 	}
 }
 
@@ -116,8 +116,7 @@ func (observer *ObserverInfo) worker(id int, jobChan <-chan record.OssTask, ctx 
 			return
 		case j := <-jobChan:
 			{
-				//TODO: 由于asset是以traceId为区分，jobId未使用，这里自动化Job以traceId作为JobId
-				jobId := j.TraceId
+				jobId := j.JobId
 				traceId := j.TraceId
 
 				jobLogger := log.NewLogicLoggerBuilder().SetTraceId(traceId).SetJobId(jobId).Build()
@@ -172,15 +171,15 @@ func (observer *ObserverInfo) scheduleJob(jobChan chan record.OssTask, ctx conte
 			logger.Info("start schedule job ...")
 
 			//查询Jobs
-			files, err := observer.queryJobs()
+			jobs, err := observer.queryJobs()
 			if err != nil {
 				logger.Error(err.Error())
 			}
 
-			length := len(files)
+			length := len(jobs)
 			logger.Info("jobs length=", length)
 
-			pushJobs(jobChan, files)
+			pushJobs(jobChan, jobs)
 
 			// need reset timer
 			t.Reset(d)

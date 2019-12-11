@@ -41,11 +41,11 @@ func (observer *ObserverInfo) queryJobs() ([]record.HiveTask, error) {
 			if e != nil {
 				return nil, e
 			}
-			logger.Infof("将assetId=%s的asset加入job队列，redis inc count=%d", datasetId, count)
+			logger.Infof("将datasetId=%s的dataset加入job队列，redis inc count=%d", datasetId, count)
 
 			ok, e := utils.SetKeyExpire(datasetId, expired)
 			if !ok {
-				logger.Infof("设置assetId=%s过期时间失败，尝试重新设置过期时间", datasetId)
+				logger.Infof("设置datasetId=%s过期时间失败，尝试重新设置过期时间", datasetId)
 				_, _ = utils.SetKeyExpire(datasetId, expired)
 			}
 
@@ -78,8 +78,8 @@ func (observer *ObserverInfo) queryJobs() ([]record.HiveTask, error) {
 func pushJobs(jobChan chan<- record.HiveTask, jobs []record.HiveTask) {
 	logger := log.NewLogicLoggerBuilder().Build()
 	logger.Info("push jobs to chan")
-	for _, file := range jobs {
-		jobChan <- file
+	for _, job := range jobs {
+		jobChan <- job
 	}
 }
 
@@ -94,8 +94,7 @@ func (observer *ObserverInfo) worker(id int, jobChan <-chan record.HiveTask, ctx
 			return
 		case j := <-jobChan:
 			{
-				//TODO: 由于asset是以traceId为区分，jobId未使用，这里自动化Job以traceId作为JobId
-				jobId := j.TraceId
+				jobId := j.JobId
 				traceId := j.TraceId
 
 				jobLogger := log.NewLogicLoggerBuilder().SetTraceId(traceId).SetJobId(jobId).Build()
@@ -150,15 +149,15 @@ func (observer *ObserverInfo) scheduleJob(jobChan chan record.HiveTask, ctx cont
 			logger.Info("start schedule job ...")
 
 			//查询Jobs
-			files, err := observer.queryJobs()
+			jobs, err := observer.queryJobs()
 			if err != nil {
 				logger.Error(err.Error())
 			}
 
-			length := len(files)
+			length := len(jobs)
 			logger.Info("jobs length=", length)
 
-			pushJobs(jobChan, files)
+			pushJobs(jobChan, jobs)
 
 			// need reset timer
 			t.Reset(d)

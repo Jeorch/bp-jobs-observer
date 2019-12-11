@@ -60,6 +60,8 @@ func (observer *ObserverInfo) queryJobs() ([]record.HiveTask, error) {
 					JobId:     newJobId,
 					TraceId:   newTraceId,
 					DatasetId: datasetId,
+					Url:       dataset.Url,
+					Length:    dataset.Length,
 					TaskType:  "create", //TODO：暂时只是创建hive表的请求
 					Remarks:   "",       //TODO：备注，预留字段
 				}

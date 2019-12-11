@@ -110,6 +110,14 @@ func writeHiveTask(r *HiveTask, w io.Writer) error {
 	if err != nil {
 		return err
 	}
+	err = writeString(r.Url, w)
+	if err != nil {
+		return err
+	}
+	err = writeInt(r.Length, w)
+	if err != nil {
+		return err
+	}
 	err = writeString(r.TaskType, w)
 	if err != nil {
 		return err

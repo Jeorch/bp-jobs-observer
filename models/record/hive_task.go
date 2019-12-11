@@ -20,6 +20,8 @@ type HiveTask struct {
 	JobId     string
 	TraceId   string
 	DatasetId string
+	Url       string
+	Length    int32
 	TaskType  string
 	Remarks   string
 }
@@ -46,7 +48,7 @@ func NewHiveTask() *HiveTask {
 }
 
 func (r *HiveTask) Schema() string {
-	return "{\"fields\":[{\"name\":\"jobId\",\"type\":\"string\"},{\"name\":\"traceId\",\"type\":\"string\"},{\"name\":\"datasetId\",\"type\":\"string\"},{\"name\":\"taskType\",\"type\":\"string\"},{\"name\":\"remarks\",\"type\":\"string\"}],\"name\":\"HiveTask\",\"namespace\":\"com.pharbers.kafka.schema\",\"type\":\"record\"}"
+	return "{\"fields\":[{\"name\":\"jobId\",\"type\":\"string\"},{\"name\":\"traceId\",\"type\":\"string\"},{\"name\":\"datasetId\",\"type\":\"string\"},{\"name\":\"url\",\"type\":\"string\"},{\"name\":\"length\",\"type\":\"int\"},{\"name\":\"taskType\",\"type\":\"string\"},{\"name\":\"remarks\",\"type\":\"string\"}],\"name\":\"HiveTask\",\"namespace\":\"com.pharbers.kafka.schema\",\"type\":\"record\"}"
 }
 
 func (r *HiveTask) SchemaName() string {
@@ -74,8 +76,12 @@ func (r *HiveTask) Get(i int) types.Field {
 	case 2:
 		return (*types.String)(&r.DatasetId)
 	case 3:
-		return (*types.String)(&r.TaskType)
+		return (*types.String)(&r.Url)
 	case 4:
+		return (*types.Int)(&r.Length)
+	case 5:
+		return (*types.String)(&r.TaskType)
+	case 6:
 		return (*types.String)(&r.Remarks)
 
 	}

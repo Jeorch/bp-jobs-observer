@@ -16,6 +16,14 @@
       "type": "string"
     },
     {
+      "name": "url",
+      "type": "string"
+    },
+    {
+      "name": "length",
+      "type": "int"
+    },
+    {
       "name": "taskType",
       "type": "string"
     },

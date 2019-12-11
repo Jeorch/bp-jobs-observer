@@ -11,14 +11,14 @@ import (
 	"time"
 )
 
-func TestClearAssetIdInRedis(t *testing.T) {
+func TestClearIdInRedis(t *testing.T) {
 
 	SetEnv()
 
 	dbHost := "59.110.31.50"
 	dbPort := "5555"
 	dbName := "pharbers-sandbox-600"
-	dbTable := "assets"
+	dbTable := "datasets"
 
 	mongoDBDialInfo := &mgo.DialInfo{
 		Addrs:   []string{fmt.Sprintf("%s:%s", dbHost, dbPort)},
@@ -32,8 +32,8 @@ func TestClearAssetIdInRedis(t *testing.T) {
 	}
 	sess.SetMode(mgo.Monotonic, true)
 
-	var assets []models.BpAsset
-	err = sess.DB(dbName).C(dbTable).Find(bson.M{}).All(&assets)
+	var datasets []models.BpDataset
+	err = sess.DB(dbName).C(dbTable).Find(bson.M{}).All(&datasets)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -43,15 +43,21 @@ func TestClearAssetIdInRedis(t *testing.T) {
 		panic(err.Error())
 	}
 
-	for _, asset := range assets {
-		assetId := asset.Id.Hex()
-		i, e := c.Del(assetId).Result()
+	var delCount int64
+
+	for _, one := range datasets {
+		id := one.Id.Hex()
+		i, e := c.Del(id).Result()
 		if e != nil {
-			fmt.Printf("assetId=%s del err\n", assetId)
+			fmt.Printf("id=%s del err\n", id)
 		}
-		if i != 1 {
-			fmt.Printf("assetId=%s del result != 1\n", assetId)
+		if i == 1 {
+			delCount += i
+		} else {
+			fmt.Printf("id=%s del result != 1\n", id)
 		}
 	}
+
+	fmt.Printf("del count = %d\n", delCount)
 
 }

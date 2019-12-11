@@ -37,8 +37,7 @@ func setEnv() {
 
 	//log
 	_ = os.Setenv(env.LogTimeFormat, "2006-01-02 15:04:05")
-	//_ = os.Setenv(env.LogOutput, "console")
-	_ = os.Setenv(env.LogOutput, "./logs/bp-jobs-observer.log")
+	_ = os.Setenv(env.LogOutput, "console")
 	_ = os.Setenv(env.LogLevel, "info")
 
 	//kafka

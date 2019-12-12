@@ -1,0 +1,55 @@
+{
+  "type": "record",
+  "name": "HiveTracebackTask",
+  "namespace": "com.pharbers.kafka.schema",
+  "fields": [
+    {
+      "name": "jobId",
+      "type": "string"
+    },
+    {
+      "name": "traceId",
+      "type": "string"
+    },
+    {
+      "name": "datasetId",
+      "type": "string"
+    },
+    {
+      "name": "parentDatasetId",
+      "type": {
+        "items": "string",
+        "type": "array"
+      }
+    },
+    {
+      "name": "parentUrl",
+      "type": {
+        "type": "record",
+        "name": "ParentUrlRecord",
+        "fields": [
+          {
+            "name": "MetaData",
+            "type": "string"
+          },
+          {
+            "name": "SampleData",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "length",
+      "type": "int"
+    },
+    {
+      "name": "taskType",
+      "type": "string"
+    },
+    {
+      "name": "remarks",
+      "type": "string"
+    }
+  ]
+}

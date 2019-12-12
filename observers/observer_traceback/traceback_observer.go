@@ -1,4 +1,4 @@
-package observer_data_cleaning
+package observer_traceback
 
 import (
 	"context"
@@ -22,6 +22,7 @@ type ObserverInfo struct {
 	ScheduleDurationSecond int64                  `json:"schedule_duration_second"`
 	RequestTopic           string                 `json:"request_topic"`
 	ResponseTopic          string                 `json:"response_topic"`
+	FilePath               string                 `json:"file_path"`
 }
 
 var (
@@ -51,10 +52,10 @@ func (observer *ObserverInfo) Open() {
 	if err != nil {
 		log.NewLogicLoggerBuilder().Build().Error(err.Error())
 	}
-
 }
 
 func (observer *ObserverInfo) Exec() {
+
 	execLogger := log.NewLogicLoggerBuilder().Build()
 	execLogger.Info("start exec")
 
@@ -70,7 +71,7 @@ func (observer *ObserverInfo) Exec() {
 	length := len(jobs)
 	execLogger.Info("jobs length=", length)
 
-	jobChan := make(chan record.HiveTask, length)
+	jobChan := make(chan record.HiveTracebackTask, length)
 	defer close(jobChan)
 
 	//分配worker执行Job
@@ -92,9 +93,13 @@ func (observer *ObserverInfo) Exec() {
 
 	//observer.Close()
 	execLogger.Info("End!")
+
+	//fileData, err := ioutil.ReadFile(observer.FilePath)
+	//utils.Check(err)
+	//dataStr := string(fileData)
+	//dataRows := strings.Split(dataStr, observer.Separator)
 }
 
 func (observer *ObserverInfo) Close() {
-	logger := log.NewLogicLoggerBuilder().Build()
-	logger.Infof("observer closed id=%s", observer.Id)
+
 }

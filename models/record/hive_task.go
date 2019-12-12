@@ -2,6 +2,7 @@
 /*
  * SOURCES:
  *     HiveTask.avsc
+ *     HiveTracebackTask.avsc
  *     OssTask.avsc
  *     OssTaskResult.avsc
  */

@@ -2,6 +2,7 @@
 /*
  * SOURCES:
  *     HiveTask.avsc
+ *     HiveTracebackTask.avsc
  *     OssTask.avsc
  *     OssTaskResult.avsc
  */
@@ -129,6 +130,43 @@ func writeHiveTask(r *HiveTask, w io.Writer) error {
 
 	return nil
 }
+func writeHiveTracebackTask(r *HiveTracebackTask, w io.Writer) error {
+	var err error
+	err = writeString(r.JobId, w)
+	if err != nil {
+		return err
+	}
+	err = writeString(r.TraceId, w)
+	if err != nil {
+		return err
+	}
+	err = writeString(r.DatasetId, w)
+	if err != nil {
+		return err
+	}
+	err = writeArrayString(r.ParentDatasetId, w)
+	if err != nil {
+		return err
+	}
+	err = writeParentUrlRecord(r.ParentUrl, w)
+	if err != nil {
+		return err
+	}
+	err = writeInt(r.Length, w)
+	if err != nil {
+		return err
+	}
+	err = writeString(r.TaskType, w)
+	if err != nil {
+		return err
+	}
+	err = writeString(r.Remarks, w)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 func writeInt(r int32, w io.Writer) error {
 	downShift := uint32(31)
@@ -220,6 +258,19 @@ func writeOssTaskResult(r *OssTaskResult, w io.Writer) error {
 		return err
 	}
 	err = writeString(r.Error, w)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+func writeParentUrlRecord(r *ParentUrlRecord, w io.Writer) error {
+	var err error
+	err = writeString(r.MetaData, w)
+	if err != nil {
+		return err
+	}
+	err = writeString(r.SampleData, w)
 	if err != nil {
 		return err
 	}

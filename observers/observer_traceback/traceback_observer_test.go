@@ -19,11 +19,11 @@ func TestStartTracebackObserver(t *testing.T) {
 		Collection:             "datasets",
 		Conditions:             map[string]interface{}{},
 		ParallelNumber:         1,
-		SingleJobTimeoutSecond: 3600,
+		SingleJobTimeoutSecond: 60,
 		ScheduleDurationSecond: 3600,
 		RequestTopic:           "HiveTracebackTask",
 		ResponseTopic:          "HiveTracebackTaskResponse",
-		FilePath:               "../../resources/tmp/error",
+		FilePath:               "../../resources/tmp/error4",
 	}
 	bfjo.Open()
 	bfjo.Exec()

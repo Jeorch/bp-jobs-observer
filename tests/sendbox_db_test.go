@@ -22,7 +22,7 @@ func TestClearIdInRedis(t *testing.T) {
 
 	mongoDBDialInfo := &mgo.DialInfo{
 		Addrs:   []string{fmt.Sprintf("%s:%s", dbHost, dbPort)},
-		Timeout: 10 * time.Second,
+		Timeout: 20 * time.Second,
 	}
 
 	sess, err := mgo.DialWithInfo(mongoDBDialInfo)
@@ -47,7 +47,9 @@ func TestClearIdInRedis(t *testing.T) {
 
 	for _, one := range datasets {
 		id := one.Id.Hex()
-		i, e := c.Del(id).Result()
+		checkKey := "traceback_" + id
+		i, e := c.Del(checkKey).Result()
+		//i, e := c.Del(id).Result()
 		if e != nil {
 			fmt.Printf("id=%s del err\n", id)
 		}

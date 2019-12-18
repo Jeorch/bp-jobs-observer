@@ -22,7 +22,7 @@ func TestStartDataCleanObserver(t *testing.T) {
 			},
 		},
 		ParallelNumber:         1,
-		SingleJobTimeoutSecond: 3600,
+		SingleJobTimeoutSecond: 60,
 		ScheduleDurationSecond: 3600,
 		RequestTopic:           "HiveTask",
 		ResponseTopic:          "HiveTaskResponse",

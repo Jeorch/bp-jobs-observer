@@ -23,7 +23,7 @@ func TestStartTracebackObserver(t *testing.T) {
 		ScheduleDurationSecond: 3600,
 		RequestTopic:           "HiveTracebackTask",
 		ResponseTopic:          "HiveTracebackTaskResponse",
-		FilePath:               "../../resources/tmp/error4",
+		FilePath:               "../../resources/tmp/礼来error2",
 	}
 	bfjo.Open()
 	bfjo.Exec()

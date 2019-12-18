@@ -10,7 +10,7 @@ func TestStartDataCleanObserver(t *testing.T) {
 	setEnv()
 
 	bfjo := ObserverInfo{
-		Id:         "0000002",
+		Id:         "0000003",
 		DBHost:     "59.110.31.50",
 		DBPort:     "5555",
 		Database:   "pharbers-sandbox-600",

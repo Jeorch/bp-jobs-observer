@@ -33,54 +33,58 @@ func (observer *ObserverInfo) queryJobs() ([]record.OssTask, error) {
 		if e != nil {
 			return nil, e
 		}
-		assetId := asset.Id.Hex()
+		if file.Extension == "xlsx" || file.Extension == "xls" {
+			assetId := asset.Id.Hex()
 
-		//TODO:在此处使用redis来check是否存在相同的job内容
-		//TODO:暂时使用redis来存储以assetId为job内容的唯一标示
-		//TODO:暂时以assetId为job内容的唯一标示
-		exist, e := utils.CheckKeyExistInRedis(assetId)
-		if e != nil {
-			return nil, e
-		}
-		if !exist {
-			count, e := utils.AddKey2Redis(assetId)
+			//TODO:在此处使用redis来check是否存在相同的job内容
+			//TODO:暂时使用redis来存储以assetId为job内容的唯一标示
+			//TODO:暂时以assetId为job内容的唯一标示
+			exist, e := utils.CheckKeyExistInRedis(assetId)
 			if e != nil {
 				return nil, e
 			}
-			logger.Infof("将assetId=%s的asset加入job队列，redis inc count=%d", assetId, count)
-
-			ok, e := utils.SetKeyExpire(assetId, expired)
-			if !ok {
-				logger.Infof("设置assetId=%s过期时间失败，尝试重新设置过期时间", assetId)
-				_, _ = utils.SetKeyExpire(assetId, expired)
-			}
-
-			//TODO:此处为拼接Job
-			//TODO:此处使用UUID生成JobId
-			newId, err := uuid.GenerateUUID()
-			if err != nil {
-				return nil, e
-			}
-			{
-				job := record.OssTask{
-					TitleIndex: nil,
-					JobId:      newId,
-					TraceId:    newId,
-					AssetId:	assetId,
-					OssKey:     file.Url,
-					FileType:   file.Extension,
-					FileName:   file.FileName,
-					SheetName:  "",
-					Labels:     asset.Labels,
-					DataCover:  asset.DataCover,
-					GeoCover:   asset.GeoCover,
-					Markets:    asset.Markets,
-					Molecules:  asset.Molecules,
-					Providers:  append(asset.Providers, "CPA&GYC"),
+			if !exist {
+				count, e := utils.AddKey2Redis(assetId)
+				if e != nil {
+					return nil, e
 				}
-				jobs = append(jobs, job)
-			}
+				logger.Infof("将assetId=%s的asset加入job队列，redis inc count=%d", assetId, count)
 
+				ok, e := utils.SetKeyExpire(assetId, expired)
+				if !ok {
+					logger.Infof("设置assetId=%s过期时间失败，尝试重新设置过期时间", assetId)
+					_, _ = utils.SetKeyExpire(assetId, expired)
+				}
+
+				//TODO:此处为拼接Job
+				//TODO:此处使用UUID生成JobId
+				newId, err := uuid.GenerateUUID()
+				if err != nil {
+					return nil, e
+				}
+				{
+					job := record.OssTask{
+						TitleIndex: nil,
+						JobId:      newId,
+						TraceId:    newId,
+						AssetId:	assetId,
+						OssKey:     file.Url,
+						FileType:   file.Extension,
+						FileName:   file.FileName,
+						SheetName:  "",
+						Labels:     asset.Labels,
+						DataCover:  asset.DataCover,
+						GeoCover:   asset.GeoCover,
+						Markets:    asset.Markets,
+						Molecules:  asset.Molecules,
+						Providers:  asset.Providers,
+					}
+					jobs = append(jobs, job)
+				}
+
+			}
+		} else {
+			println(file.Extension)
 		}
 
 	}

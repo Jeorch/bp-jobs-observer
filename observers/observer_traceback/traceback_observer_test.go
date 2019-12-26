@@ -15,7 +15,7 @@ func TestStartTracebackObserver(t *testing.T) {
 		Id:                     "0000003",
 		DBHost:                 "59.110.31.50",
 		DBPort:                 "5555",
-		Database:               "pharbers-sandbox-600",
+		Database:               "pharbers-sandbox-600-chc",
 		Collection:             "datasets",
 		Conditions:             map[string]interface{}{},
 		ParallelNumber:         1,
@@ -23,7 +23,7 @@ func TestStartTracebackObserver(t *testing.T) {
 		ScheduleDurationSecond: 3600,
 		RequestTopic:           "HiveTracebackTask",
 		ResponseTopic:          "HiveTracebackTaskResponse",
-		FilePath:               "../../resources/tmp/礼来error2",
+		FilePath:               "../../resources/tmp/施维雅error1",
 	}
 	bfjo.Open()
 	bfjo.Exec()

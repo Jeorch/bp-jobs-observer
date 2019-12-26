@@ -13,7 +13,7 @@ func main() {
 		Id:         "0000001",
 		DBHost:     "59.110.31.50",
 		DBPort:     "5555",
-		Database:   "pharbers-sandbox-600",
+		Database:   "pharbers-sandbox-600-chc",
 		Collection: "assets",
 		Conditions: map[string]interface{}{
 			"$and": []map[string]interface{}{

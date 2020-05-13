@@ -2,11 +2,15 @@ package observer_oss_task
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/PharbersDeveloper/bp-go-lib/kafka"
 	"github.com/PharbersDeveloper/bp-go-lib/log"
+	"github.com/PharbersDeveloper/bp-jobs-observer/models"
 	"github.com/PharbersDeveloper/bp-jobs-observer/models/record"
+	"github.com/hashicorp/go-uuid"
 	"gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
 	"time"
 )
 
@@ -18,16 +22,14 @@ type ObserverInfo struct {
 	Collection             string                 `json:"collection"`
 	Conditions             map[string]interface{} `json:"conditions"`
 	ParallelNumber         int                    `json:"parallel_number"`
-	SingleJobTimeoutSecond int64                  `json:"single_job_timeout_second"`
-	ScheduleDurationSecond int64                  `json:"schedule_duration_second"`
 	RequestTopic           string                 `json:"request_topic"`
-	ResponseTopic          string                 `json:"response_topic"`
 }
 
 var (
 	dbSession    *mgo.Session
 	kafkaBuilder *kafka.BpKafkaBuilder
 	producer     *kafka.BpProducer
+	jobChan		 chan record.OssTask
 )
 
 func (observer *ObserverInfo) Open() {
@@ -38,16 +40,18 @@ func (observer *ObserverInfo) Open() {
 
 	sess, err := mgo.DialWithInfo(mongoDBDialInfo)
 	if err != nil {
-		sess.Refresh()
 		log.NewLogicLoggerBuilder().Build().Error(err.Error())
+		if sess != nil {
+			sess.Refresh()
+		}
 	}
-	sess.SetMode(mgo.Monotonic, true)
-
-	dbSession = sess
+	if sess != nil {
+		sess.SetMode(mgo.Monotonic, true)
+		dbSession = sess
+	}
 
 	kafkaBuilder = kafka.NewKafkaBuilder()
 	producer, err = kafkaBuilder.BuildProducer()
-	//consumer, err = kafkaBuilder.SetGroupId(observer.Id).BuildConsumer()
 	if err != nil {
 		log.NewLogicLoggerBuilder().Build().Error(err.Error())
 	}
@@ -55,7 +59,7 @@ func (observer *ObserverInfo) Open() {
 }
 
 func (observer *ObserverInfo) Exec() {
-	execLogger := log.NewLogicLoggerBuilder().Build()
+	execLogger := log.NewLogicLoggerBuilder().SetTraceId(observer.Id).Build()
 	execLogger.Info("start exec")
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -70,31 +74,176 @@ func (observer *ObserverInfo) Exec() {
 	length := len(jobs)
 	execLogger.Info("jobs length=", length)
 
-	jobChan := make(chan record.OssTask, length)
-	defer close(jobChan)
+	if length > 0 {
+		jobChan = make(chan record.OssTask, observer.ParallelNumber)
 
-	//分配worker执行Job
-	for id := 1; id <= observer.ParallelNumber; id++ {
-		go observer.worker(id, jobChan, ctx)
+		//分配worker执行Job
+		for id := 1; id <= observer.ParallelNumber; id++ {
+			go observer.worker(id, jobChan, ctx)
+		}
+
+		//将一组 job push 到 chan队列
+		pushJobs(jobChan, jobs[0:observer.ParallelNumber])
 	}
 
-	//将file job push 到 chan队列
-	pushJobs(jobChan, jobs)
-	execLogger.Info("All jobChan pushed done!")
-
-	//另起一个协程执行scheduleJob，定时刷新job队列
-	go observer.scheduleJob(jobChan, ctx)
-
-	select {
-	case <-ctx.Done():
-		execLogger.Info("Exec context done!")
-	}
-
-	//observer.Close()
-	execLogger.Info("End!")
+	execLogger.Info("Oss Task Ended!")
+	time.Sleep(10 * time.Second)	//10秒钟后ctx局部变量done
 }
 
 func (observer *ObserverInfo) Close() {
-	//close(jobChan)
-	//close(jobStatus)
+	if jobChan != nil {
+		close(jobChan)
+	}
+}
+
+func (observer *ObserverInfo) queryJobs() ([]record.OssTask, error) {
+
+	logger := log.NewLogicLoggerBuilder().SetTraceId(observer.Id).Build()
+	logger.Info("query jobs from db")
+
+	var assets []models.BpAsset
+	//err := dbSession.DB(observer.Database).C(observer.Collection).Find(observer.Conditions).Limit(observer.ParallelNumber).All(&assets)
+	err := dbSession.DB(observer.Database).C(observer.Collection).Find(observer.Conditions).All(&assets)
+	if err != nil {
+		return nil, err
+	}
+
+	jobs := make([]record.OssTask, 0)
+	for _, asset := range assets {
+		file, e := observer.queryFile(asset.File)
+		if e != nil {
+			return nil, e
+		}
+		if file.Extension == "xlsx" || file.Extension == "xls" {
+			assetId := asset.Id.Hex()
+			newId, err := uuid.GenerateUUID()
+			if err != nil {
+				return nil, e
+			}
+
+			providers, err := getProviders(asset)
+			if err != nil {
+				logger.Errorf("Get providers'error: %s.", err.Error())
+			}
+
+			job := record.OssTask{
+				AssetId:	assetId,
+				JobId:      newId,
+				TraceId:    observer.Id,
+				OssKey:     file.Url,
+				FileType:   file.Extension,
+				FileName:   file.FileName,
+				SheetName:  "",
+				Owner: 		asset.Owner,
+				CreateTime: int64(asset.CreateTime),
+				Labels:     asset.Labels,
+				DataCover:  asset.DataCover,
+				GeoCover:   asset.GeoCover,
+				Markets:    asset.Markets,
+				Molecules:  asset.Molecules,
+				Providers:  providers,
+			}
+			jobs = append(jobs, job)
+		} else {
+			logger.Warnf("not match file extension(%s)", file.Extension)
+		}
+
+	}
+
+	return jobs, nil
+}
+
+func (observer *ObserverInfo) queryFile(id bson.ObjectId) (models.BpFile, error) {
+	var file models.BpFile
+	err := dbSession.DB(observer.Database).C("files").Find(bson.M{"_id": id}).One(&file)
+	if err != nil {
+		return file, err
+	}
+	return file, err
+}
+
+func getProviders(asset models.BpAsset) ([]string, error) {
+
+	if asset.Labels == nil {
+		return asset.Providers, nil
+	}
+
+	//TODO：听说之后labels这个会变，目前是 json-string-array
+	for _, label := range asset.Labels {
+		m := make(map[string]interface{}, 0)
+		err := json.Unmarshal([]byte(label), &m)
+		if err != nil {
+			return asset.Providers, err
+		}
+		if pInterface, ok := m["providers"]; ok {
+			pArr, ok := pInterface.([]interface{})
+			if !ok {
+				return asset.Providers, nil
+			}
+			providers := make([]string, 0)
+			for _, p := range pArr {
+				pM, ok := p.(map[string]interface{})
+				if ok && pM != nil {
+					for _, v := range pM {
+						if pStr, ok := v.(string); ok {
+							providers = append(providers, pStr)
+						}
+					}
+				}
+			}
+			if len(providers) != 0 {
+				return providers, nil
+			}
+		}
+	}
+
+	return asset.Providers, nil
+}
+
+func pushJobs(jobChan chan<- record.OssTask, jobs []record.OssTask) {
+	logger := log.NewLogicLoggerBuilder().Build()
+	logger.Info("push jobs to chan")
+	for _, job := range jobs {
+		jobChan <- job
+	}
+}
+
+func (observer *ObserverInfo) worker(id int, jobChan <-chan record.OssTask, ctx context.Context) {
+	workerLogger := log.NewLogicLoggerBuilder().Build()
+	workerLogger.Info("worker", id, " standby!")
+
+	for {
+		select {
+		case <-ctx.Done():
+			workerLogger.Infof("worker-%d stop", id)
+			return
+		case j := <-jobChan:
+			{
+				jobId := j.JobId
+				traceId := j.TraceId
+
+				jobLogger := log.NewLogicLoggerBuilder().SetTraceId(traceId).SetJobId(jobId).Build()
+				jobLogger.Infof("worker-%d start job=%v", id, j)
+
+				//send job request
+				err := sendJobRequest(observer.RequestTopic, j)
+				if err != nil {
+					jobLogger.Error(err.Error())
+				}
+				jobLogger.Infof("worker-%d sanded job=%v", id, j.JobId)
+			}
+		}
+	}
+
+}
+
+func sendJobRequest(topic string, job record.OssTask) error {
+
+	specificRecordByteArr, err := kafka.EncodeAvroRecord(&job)
+	if err != nil {
+		return err
+	}
+
+	err = producer.Produce(topic, []byte(job.TraceId), specificRecordByteArr)
+	return err
 }

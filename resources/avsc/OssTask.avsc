@@ -4,11 +4,8 @@
   "namespace": "com.pharbers.kafka.schema",
   "fields": [
     {
-      "name": "titleIndex",
-      "type": {
-        "items": "int",
-        "type": "array"
-      }
+      "name": "assetId",
+      "type": "string"
     },
     {
       "name": "jobId",
@@ -16,10 +13,6 @@
     },
     {
       "name": "traceId",
-      "type": "string"
-    },
-    {
-      "name": "assetId",
       "type": "string"
     },
     {
@@ -37,6 +30,14 @@
     {
       "name": "sheetName",
       "type": "string"
+    },
+    {
+      "name": "owner",
+      "type": "string"
+    },
+    {
+      "name": "createTime",
+      "type": "long"
     },
     {
       "name": "labels",

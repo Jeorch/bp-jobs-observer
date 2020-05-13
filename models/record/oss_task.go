@@ -18,14 +18,15 @@ import (
 )
 
 type OssTask struct {
-	TitleIndex []int32
+	AssetId    string
 	JobId      string
 	TraceId    string
-	AssetId    string
 	OssKey     string
 	FileType   string
 	FileName   string
 	SheetName  string
+	Owner      string
+	CreateTime int64
 	Labels     []string
 	DataCover  []string
 	GeoCover   []string
@@ -56,7 +57,7 @@ func NewOssTask() *OssTask {
 }
 
 func (r *OssTask) Schema() string {
-	return "{\"fields\":[{\"name\":\"titleIndex\",\"type\":{\"items\":\"int\",\"type\":\"array\"}},{\"name\":\"jobId\",\"type\":\"string\"},{\"name\":\"traceId\",\"type\":\"string\"},{\"name\":\"assetId\",\"type\":\"string\"},{\"name\":\"ossKey\",\"type\":\"string\"},{\"name\":\"fileType\",\"type\":\"string\"},{\"name\":\"fileName\",\"type\":\"string\"},{\"name\":\"sheetName\",\"type\":\"string\"},{\"name\":\"labels\",\"type\":{\"items\":\"string\",\"type\":\"array\"}},{\"name\":\"dataCover\",\"type\":{\"items\":\"string\",\"type\":\"array\"}},{\"name\":\"geoCover\",\"type\":{\"items\":\"string\",\"type\":\"array\"}},{\"name\":\"markets\",\"type\":{\"items\":\"string\",\"type\":\"array\"}},{\"name\":\"molecules\",\"type\":{\"items\":\"string\",\"type\":\"array\"}},{\"name\":\"providers\",\"type\":{\"items\":\"string\",\"type\":\"array\"}}],\"name\":\"OssTask\",\"namespace\":\"com.pharbers.kafka.schema\",\"type\":\"record\"}"
+	return "{\"fields\":[{\"name\":\"assetId\",\"type\":\"string\"},{\"name\":\"jobId\",\"type\":\"string\"},{\"name\":\"traceId\",\"type\":\"string\"},{\"name\":\"ossKey\",\"type\":\"string\"},{\"name\":\"fileType\",\"type\":\"string\"},{\"name\":\"fileName\",\"type\":\"string\"},{\"name\":\"sheetName\",\"type\":\"string\"},{\"name\":\"owner\",\"type\":\"string\"},{\"name\":\"createTime\",\"type\":\"long\"},{\"name\":\"labels\",\"type\":{\"items\":\"string\",\"type\":\"array\"}},{\"name\":\"dataCover\",\"type\":{\"items\":\"string\",\"type\":\"array\"}},{\"name\":\"geoCover\",\"type\":{\"items\":\"string\",\"type\":\"array\"}},{\"name\":\"markets\",\"type\":{\"items\":\"string\",\"type\":\"array\"}},{\"name\":\"molecules\",\"type\":{\"items\":\"string\",\"type\":\"array\"}},{\"name\":\"providers\",\"type\":{\"items\":\"string\",\"type\":\"array\"}}],\"name\":\"OssTask\",\"namespace\":\"com.pharbers.kafka.schema\",\"type\":\"record\"}"
 }
 
 func (r *OssTask) SchemaName() string {
@@ -78,38 +79,39 @@ func (_ *OssTask) SetUnionElem(v int64) { panic("Unsupported operation") }
 func (r *OssTask) Get(i int) types.Field {
 	switch i {
 	case 0:
-		r.TitleIndex = make([]int32, 0)
-		return (*ArrayIntWrapper)(&r.TitleIndex)
+		return (*types.String)(&r.AssetId)
 	case 1:
 		return (*types.String)(&r.JobId)
 	case 2:
 		return (*types.String)(&r.TraceId)
 	case 3:
-		return (*types.String)(&r.AssetId)
-	case 4:
 		return (*types.String)(&r.OssKey)
-	case 5:
+	case 4:
 		return (*types.String)(&r.FileType)
-	case 6:
+	case 5:
 		return (*types.String)(&r.FileName)
-	case 7:
+	case 6:
 		return (*types.String)(&r.SheetName)
+	case 7:
+		return (*types.String)(&r.Owner)
 	case 8:
+		return (*types.Long)(&r.CreateTime)
+	case 9:
 		r.Labels = make([]string, 0)
 		return (*ArrayStringWrapper)(&r.Labels)
-	case 9:
+	case 10:
 		r.DataCover = make([]string, 0)
 		return (*ArrayStringWrapper)(&r.DataCover)
-	case 10:
+	case 11:
 		r.GeoCover = make([]string, 0)
 		return (*ArrayStringWrapper)(&r.GeoCover)
-	case 11:
+	case 12:
 		r.Markets = make([]string, 0)
 		return (*ArrayStringWrapper)(&r.Markets)
-	case 12:
+	case 13:
 		r.Molecules = make([]string, 0)
 		return (*ArrayStringWrapper)(&r.Molecules)
-	case 13:
+	case 14:
 		r.Providers = make([]string, 0)
 		return (*ArrayStringWrapper)(&r.Providers)
 

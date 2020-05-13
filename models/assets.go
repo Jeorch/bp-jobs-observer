@@ -86,6 +86,7 @@ type BpAsset struct {
 	DataCover     []string      `json:"dataCover" bson:"dataCover"`
 	GeoCover      []string      `json:"geoCover" bson:"geoCover"`
 	Labels        []string      `json:"labels"`
+	CreateTime	  float32		`json:"createTime" bson:"createTime"`
 	File          bson.ObjectId `json:"file"`
 	Dfs           []interface{} `json:"dfs"`
 	V             int32         `json:"__v" bson:"__v"`

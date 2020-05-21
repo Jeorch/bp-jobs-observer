@@ -7,6 +7,7 @@ import (
 	"github.com/PharbersDeveloper/bp-go-lib/kafka"
 	"github.com/PharbersDeveloper/bp-go-lib/log"
 	"github.com/PharbersDeveloper/bp-jobs-observer/models"
+	"github.com/PharbersDeveloper/bp-jobs-observer/models/PhEventMsg"
 	"github.com/PharbersDeveloper/bp-jobs-observer/models/record"
 	"github.com/hashicorp/go-uuid"
 	"gopkg.in/mgo.v2"
@@ -116,11 +117,7 @@ func (observer *ObserverInfo) queryJobs() ([]record.OssTask, error) {
 		}
 		if file.Extension == "xlsx" || file.Extension == "xls" {
 			assetId := asset.Id.Hex()
-			newId, err := uuid.GenerateUUID()
-			if err != nil {
-				return nil, e
-			}
-
+			newId, _ := uuid.GenerateUUID()
 			providers, err := getProviders(asset)
 			if err != nil {
 				logger.Errorf("Get providers'error: %s.", err.Error())
@@ -239,10 +236,23 @@ func (observer *ObserverInfo) worker(id int, jobChan <-chan record.OssTask, ctx 
 
 func sendJobRequest(topic string, job record.OssTask) error {
 
-	specificRecordByteArr, err := kafka.EncodeAvroRecord(&job)
+	json, err := json.Marshal(job)
 	if err != nil {
 		return err
 	}
+
+	eventMsg := PhEventMsg.EventMsg{
+		JobId: job.JobId,
+		TraceId: job.TraceId,
+		Type   : "PushJob",
+		Data   : string(json),
+	}
+
+	specificRecordByteArr, err := kafka.EncodeAvroRecord(&eventMsg)
+	if err != nil {
+		return err
+	}
+
 
 	err = producer.Produce(topic, []byte(job.TraceId), specificRecordByteArr)
 	return err

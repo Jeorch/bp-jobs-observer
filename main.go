@@ -19,7 +19,7 @@ const (
 
 func main() {
 	//本机调试使用，部署时请注释掉下面setEnv行
-	//setEnv()
+	setEnv()
 
 	DbHost := os.Getenv(DbHostKey)
 	if DbHost == "" {
@@ -82,12 +82,12 @@ func main() {
 func setEnv() {
 	//项目范围内的环境变量
 	_ = os.Setenv(env.ProjectName, "bp-jobs-observer")
-	_ = os.Setenv(DbHostKey, "59.110.31.50")
-	_ = os.Setenv(DbPortKey, "5555")
+	_ = os.Setenv(DbHostKey, "127.0.0.1")
+	_ = os.Setenv(DbPortKey, "27017")
 	_ = os.Setenv(DbNameKey, "pharbers-sandbox-merge")
 	_ = os.Setenv(DbCollKey, "assets")
 	_ = os.Setenv(ParallelNumKey, "1")
-	_ = os.Setenv(ReqTopicKey, "test512")
+	_ = os.Setenv(ReqTopicKey, "oss_msg")
 
 	//log
 	_ = os.Setenv(env.LogTimeFormat, "2006-01-02 15:04:05")
@@ -97,7 +97,7 @@ func setEnv() {
 
 	//kafka
 	_ = os.Setenv(env.KafkaConfigPath, "resources/kafka_config.json")
-	_ = os.Setenv(env.KafkaSchemaRegistryUrl, "http://123.56.179.133:8081")
+	_ = os.Setenv(env.KafkaSchemaRegistryUrl, "http://schema.message:8081")
 
 	//redis
 	_ = os.Setenv(env.RedisHost, "192.168.100.176")

@@ -19,7 +19,7 @@ const (
 
 func main() {
 	//本机调试使用，部署时请注释掉下面setEnv行
-	setEnv()
+	//setEnv()
 
 	DbHost := os.Getenv(DbHostKey)
 	if DbHost == "" {

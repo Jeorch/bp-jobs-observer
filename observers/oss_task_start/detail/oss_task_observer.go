@@ -1,4 +1,4 @@
-package observer_oss_task
+package detail
 
 import (
 	"context"

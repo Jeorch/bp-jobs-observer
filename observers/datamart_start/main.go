@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/PharbersDeveloper/bp-go-lib/env"
-	"github.com/PharbersDeveloper/bp-jobs-observer/observers/observer_oss_task"
+	datamart "github.com/PharbersDeveloper/bp-jobs-observer/observers/datamart_start/detail"
 	"github.com/hashicorp/go-uuid"
 	"os"
 	"strconv"
@@ -18,8 +18,8 @@ const (
 )
 
 func main() {
-	//本机调试使用，部署时请注释掉下面setEnv行
-	//setEnv()
+	//本地开发调试使用，部署时请注释掉下面 setDevEnv 行
+	//setDevEnv()
 
 	DbHost := os.Getenv(DbHostKey)
 	if DbHost == "" {
@@ -58,7 +58,7 @@ func main() {
 
 	newId, _ := uuid.GenerateUUID()
 	//TODO: Conditions 配置抽离
-	bpjo := observer_oss_task.ObserverInfo{
+	bpjo := datamart.ObserverInfo{
 		Id:         newId,
 		DBHost:     DbHost,
 		DBPort:     DbPort,
@@ -66,9 +66,9 @@ func main() {
 		Collection: DbColl,
 		Conditions: map[string]interface{}{
 			"$and": []map[string]interface{}{
-				map[string]interface{}{"file": map[string]interface{}{"$exists": true, "$ne": ""}},
-				map[string]interface{}{"isNewVersion": true},
-				map[string]interface{}{"dfs": map[string]interface{}{"$exists": true, "$size": 0}},
+				map[string]interface{}{"url": map[string]interface{}{"$exists": true, "$ne": ""}},
+				map[string]interface{}{"status": "end"},
+				map[string]interface{}{"description": "pyJob"},
 			},
 		},
 		ParallelNumber: ParallelNum,
@@ -79,29 +79,23 @@ func main() {
 	bpjo.Close()
 }
 
-func setEnv() {
+func setDevEnv() {
 	//项目范围内的环境变量
-	_ = os.Setenv(env.ProjectName, "bp-jobs-observer")
+	_ = os.Setenv(env.ProjectName, "datamart-start")
 	_ = os.Setenv(DbHostKey, "127.0.0.1")
 	_ = os.Setenv(DbPortKey, "27017")
 	_ = os.Setenv(DbNameKey, "pharbers-sandbox-merge")
-	_ = os.Setenv(DbCollKey, "assets")
+	_ = os.Setenv(DbCollKey, "datasets")
 	_ = os.Setenv(ParallelNumKey, "1")
-	_ = os.Setenv(ReqTopicKey, "oss_msg")
+	_ = os.Setenv(ReqTopicKey, "test528")
 
 	//log
 	_ = os.Setenv(env.LogTimeFormat, "2006-01-02 15:04:05")
-	//_ = os.Setenv(env.LogOutput, "console")
-	_ = os.Setenv(env.LogOutput, "./logs/bp-jobs-observer.log")
+	_ = os.Setenv(env.LogOutput, "console")
+	//_ = os.Setenv(env.LogOutput, "./logs/bp-jobs-observer.log")
 	_ = os.Setenv(env.LogLevel, "info")
 
 	//kafka
-	_ = os.Setenv(env.KafkaConfigPath, "resources/kafka_config.json")
+	_ = os.Setenv(env.KafkaConfigPath, "deploy-config/kafka_config.json")
 	_ = os.Setenv(env.KafkaSchemaRegistryUrl, "http://schema.message:8081")
-
-	//redis
-	_ = os.Setenv(env.RedisHost, "192.168.100.176")
-	_ = os.Setenv(env.RedisPort, "6379")
-	_ = os.Setenv(env.RedisPass, "")
-	_ = os.Setenv(env.RedisDb, "0")
 }

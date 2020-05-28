@@ -1,7 +1,7 @@
 package tests
 
 import (
-	"github.com/PharbersDeveloper/bp-jobs-observer/observers/observer_oss_task"
+	"github.com/PharbersDeveloper/bp-jobs-observer/observers/oss_task_start/detail"
 	"github.com/hashicorp/go-uuid"
 	"testing"
 )
@@ -11,7 +11,7 @@ func TestOssTask(t *testing.T) {
 	SetEnv()
 
 	newId, _ := uuid.GenerateUUID()
-	bpjo := observer_oss_task.ObserverInfo{
+	bpjo := detail.ObserverInfo{
 		Id:         newId,
 		DBHost:     "59.110.31.50",
 		DBPort:     "5555",

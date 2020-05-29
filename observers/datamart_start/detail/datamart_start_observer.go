@@ -195,7 +195,19 @@ func (observer *ObserverInfo) worker(id int, jobChan <-chan models.BpDataset, ct
 
 func (observer *ObserverInfo) sendJobRequest(topic string, job models.BpDataset) error {
 
-	jsonBytes, err := json.Marshal(job)
+	msg := map[string]interface{}{
+		"datasetId":job.Id.Hex(),
+		"taskType":"append",
+		"url":job.Url,
+		"length":job.Length,
+		"remarks":"",
+	}
+
+	if len(jobChan) == 0 {
+		msg["taskType"] = "end"
+	}
+
+	jsonBytes, err := json.Marshal(msg)
 	if err != nil {
 		return err
 	}

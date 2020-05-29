@@ -24,6 +24,14 @@ func Run() {
 		println("Error! No DB_PORT env set.")
 		return
 	}
+	DbUser := os.Getenv(observers.DbUserKey)
+	if DbUser == "" {
+		println("Warn! No DB_USER env set.")
+	}
+	DbPass := os.Getenv(observers.DbPassKey)
+	if DbPass == "" {
+		println("Warn! No DB_PASS env set.")
+	}
 	DbName := os.Getenv(observers.DbNameKey)
 	if DbName == "" {
 		println("Error! No DB_NAME env set.")
@@ -55,6 +63,8 @@ func Run() {
 		Id:         newId,
 		DBHost:     DbHost,
 		DBPort:     DbPort,
+		DBUser:     DbUser,
+		DBPass:     DbPass,
 		Database:   DbName,
 		Collection: DbColl,
 		Conditions: map[string]interface{}{
@@ -76,8 +86,10 @@ func Run() {
 func SetEntryEnv() {
 
 	_ = os.Setenv(observers.EntryKey, EntryValue)
-	_ = os.Setenv(observers.DbHostKey, "192.168.100.116")
-	_ = os.Setenv(observers.DbPortKey, "27017")
+	_ = os.Setenv(observers.DbHostKey, "a0eb74da798af11ea934b02ff50af4f4-919388620.cn-northwest-1.elb.amazonaws.com.cn")
+	_ = os.Setenv(observers.DbPortKey, "30010")
+	_ = os.Setenv(observers.DbUserKey, "pharbers")
+	_ = os.Setenv(observers.DbPassKey, "Pharbers.84244216")
 	_ = os.Setenv(observers.DbNameKey, "pharbers-sandbox-merge")
 	_ = os.Setenv(observers.DbCollKey, "assets")
 	_ = os.Setenv(observers.ParallelNumKey, "1")

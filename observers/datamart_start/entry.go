@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	EntryValue          = "datamart-start"
+	EntryValue = "datamart-start"
 )
 
 func Run() {
@@ -23,6 +23,14 @@ func Run() {
 	if DbPort == "" {
 		println("Error! No DB_PORT env set.")
 		return
+	}
+	DbUser := os.Getenv(observers.DbUserKey)
+	if DbUser == "" {
+		println("Warn! No DB_USER env set.")
+	}
+	DbPass := os.Getenv(observers.DbPassKey)
+	if DbPass == "" {
+		println("Warn! No DB_PASS env set.")
 	}
 	DbName := os.Getenv(observers.DbNameKey)
 	if DbName == "" {
@@ -55,6 +63,8 @@ func Run() {
 		Id:         newId,
 		DBHost:     DbHost,
 		DBPort:     DbPort,
+		DBUser:     DbUser,
+		DBPass:     DbPass,
 		Database:   DbName,
 		Collection: DbColl,
 		Conditions: map[string]interface{}{
@@ -78,6 +88,8 @@ func SetEntryEnv() {
 	_ = os.Setenv(observers.EntryKey, EntryValue)
 	_ = os.Setenv(observers.DbHostKey, "192.168.100.116")
 	_ = os.Setenv(observers.DbPortKey, "27017")
+	_ = os.Setenv(observers.DbUserKey, "")
+	_ = os.Setenv(observers.DbPassKey, "")
 	_ = os.Setenv(observers.DbNameKey, "pharbers-sandbox-merge2")
 	_ = os.Setenv(observers.DbCollKey, "datasets")
 	_ = os.Setenv(observers.ParallelNumKey, "1")

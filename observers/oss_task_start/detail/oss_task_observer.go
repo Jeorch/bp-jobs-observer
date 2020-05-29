@@ -16,30 +16,36 @@ import (
 )
 
 type ObserverInfo struct {
-	Id                     string                 `json:"id"`
-	DBHost                 string                 `json:"db_host"`
-	DBPort                 string                 `json:"db_port"`
-	Database               string                 `json:"database"`
-	Collection             string                 `json:"collection"`
-	Conditions             map[string]interface{} `json:"conditions"`
-	ParallelNumber         int                    `json:"parallel_number"`
-	RequestTopic           string                 `json:"request_topic"`
+	Id             string                 `json:"id"`
+	DBHost         string                 `json:"db_host"`
+	DBPort         string                 `json:"db_port"`
+	Database       string                 `json:"database"`
+	Collection     string                 `json:"collection"`
+	Conditions     map[string]interface{} `json:"conditions"`
+	ParallelNumber int                    `json:"parallel_number"`
+	RequestTopic   string                 `json:"request_topic"`
+	DBUser         string                 `json:"db_user"`
+	DBPass         string                 `json:"db_pass"`
 }
 
 var (
 	dbSession    *mgo.Session
 	kafkaBuilder *kafka.BpKafkaBuilder
 	producer     *kafka.BpProducer
-	jobChan		 chan record.OssTask
+	jobChan      chan record.OssTask
 )
 
 func (observer *ObserverInfo) Open() {
-	mongoDBDialInfo := &mgo.DialInfo{
-		Addrs:   []string{fmt.Sprintf("%s:%s", observer.DBHost, observer.DBPort)},
-		Timeout: 1 * time.Hour,
-	}
 
-	sess, err := mgo.DialWithInfo(mongoDBDialInfo)
+	sess, err := mgo.Dial(fmt.Sprintf("%s:%s", observer.DBHost, observer.DBPort))
+	if err != nil {
+		log.NewLogicLoggerBuilder().Build().Error(err.Error())
+	}
+	cred := mgo.Credential{
+		Username: observer.DBUser,
+		Password: observer.DBPass,
+	}
+	err = sess.Login(&cred)
 	if err != nil {
 		log.NewLogicLoggerBuilder().Build().Error(err.Error())
 		if sess != nil {
@@ -88,7 +94,7 @@ func (observer *ObserverInfo) Exec() {
 	}
 
 	execLogger.Info("Oss Task Ended!")
-	time.Sleep(10 * time.Second)	//10秒钟后ctx局部变量done
+	time.Sleep(10 * time.Second) //10秒钟后ctx局部变量done
 }
 
 func (observer *ObserverInfo) Close() {
@@ -124,14 +130,14 @@ func (observer *ObserverInfo) queryJobs() ([]record.OssTask, error) {
 			}
 
 			job := record.OssTask{
-				AssetId:	assetId,
+				AssetId:    assetId,
 				JobId:      newId,
 				TraceId:    observer.Id,
 				OssKey:     file.Url,
 				FileType:   file.Extension,
 				FileName:   file.FileName,
 				SheetName:  "",
-				Owner: 		asset.Owner,
+				Owner:      asset.Owner,
 				CreateTime: int64(asset.CreateTime),
 				Labels:     asset.Labels,
 				DataCover:  asset.DataCover,
@@ -242,17 +248,16 @@ func sendJobRequest(topic string, job record.OssTask) error {
 	}
 
 	eventMsg := PhEventMsg.EventMsg{
-		JobId: job.JobId,
+		JobId:   job.JobId,
 		TraceId: job.TraceId,
-		Type   : "PushJob",
-		Data   : string(json),
+		Type:    "PushJob",
+		Data:    string(json),
 	}
 
 	specificRecordByteArr, err := kafka.EncodeAvroRecord(&eventMsg)
 	if err != nil {
 		return err
 	}
-
 
 	err = producer.Produce(topic, []byte(job.TraceId), specificRecordByteArr)
 	return err

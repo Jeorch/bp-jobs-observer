@@ -22,6 +22,8 @@ type ObserverInfo struct {
 	Conditions     map[string]interface{} `json:"conditions"`
 	ParallelNumber int                    `json:"parallel_number"`
 	RequestTopic   string                 `json:"request_topic"`
+	DBUser         string                 `json:"db_user"`
+	DBPass         string                 `json:"db_pass"`
 }
 
 var (
@@ -32,12 +34,15 @@ var (
 )
 
 func (observer *ObserverInfo) Open() {
-	mongoDBDialInfo := &mgo.DialInfo{
-		Addrs:   []string{fmt.Sprintf("%s:%s", observer.DBHost, observer.DBPort)},
-		Timeout: 1 * time.Hour,
+	sess, err := mgo.Dial(fmt.Sprintf("%s:%s", observer.DBHost, observer.DBPort))
+	if err != nil {
+		log.NewLogicLoggerBuilder().Build().Error(err.Error())
 	}
-
-	sess, err := mgo.DialWithInfo(mongoDBDialInfo)
+	cred := mgo.Credential{
+		Username: observer.DBUser,
+		Password: observer.DBPass,
+	}
+	err = sess.Login(&cred)
 	if err != nil {
 		log.NewLogicLoggerBuilder().Build().Error(err.Error())
 		if sess != nil {

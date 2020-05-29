@@ -1,7 +1,7 @@
-package main
+package datamart_start
 
 import (
-	"github.com/PharbersDeveloper/bp-go-lib/env"
+	"github.com/PharbersDeveloper/bp-jobs-observer/observers"
 	datamart "github.com/PharbersDeveloper/bp-jobs-observer/observers/datamart_start/detail"
 	"github.com/hashicorp/go-uuid"
 	"os"
@@ -9,39 +9,32 @@ import (
 )
 
 const (
-	DbHostKey      = "DB_HOST"
-	DbPortKey      = "DB_PORT"
-	DbNameKey      = "DB_NAME"
-	DbCollKey      = "DB_COLL"
-	ParallelNumKey = "PARALLEL_NUM"
-	ReqTopicKey    = "REQ_TOPIC"
+	EntryValue          = "datamart-start"
 )
 
-func main() {
-	//本地开发调试使用，部署时请注释掉下面 setDevEnv 行
-	//setDevEnv()
+func Run() {
 
-	DbHost := os.Getenv(DbHostKey)
+	DbHost := os.Getenv(observers.DbHostKey)
 	if DbHost == "" {
 		println("Error! No DB_HOST env set.")
 		return
 	}
-	DbPort := os.Getenv(DbPortKey)
+	DbPort := os.Getenv(observers.DbPortKey)
 	if DbPort == "" {
 		println("Error! No DB_PORT env set.")
 		return
 	}
-	DbName := os.Getenv(DbNameKey)
+	DbName := os.Getenv(observers.DbNameKey)
 	if DbName == "" {
 		println("Error! No DB_NAME env set.")
 		return
 	}
-	DbColl := os.Getenv(DbCollKey)
+	DbColl := os.Getenv(observers.DbCollKey)
 	if DbColl == "" {
 		println("Error! No DB_COLL env set.")
 		return
 	}
-	ParallelNumStr := os.Getenv(ParallelNumKey)
+	ParallelNumStr := os.Getenv(observers.ParallelNumKey)
 	if ParallelNumStr == "" {
 		println("Error! No PARALLEL_NUM env set.")
 		return
@@ -50,7 +43,7 @@ func main() {
 	if err != nil {
 		panic(err.Error())
 	}
-	ReqTopic := os.Getenv(ReqTopicKey)
+	ReqTopic := os.Getenv(observers.ReqTopicKey)
 	if ReqTopic == "" {
 		println("Error! No REQ_TOPIC env set.")
 		return
@@ -79,23 +72,15 @@ func main() {
 	bpjo.Close()
 }
 
-func setDevEnv() {
-	//项目范围内的环境变量
-	_ = os.Setenv(env.ProjectName, "datamart-start")
-	_ = os.Setenv(DbHostKey, "127.0.0.1")
-	_ = os.Setenv(DbPortKey, "27017")
-	_ = os.Setenv(DbNameKey, "pharbers-sandbox-merge")
-	_ = os.Setenv(DbCollKey, "datasets")
-	_ = os.Setenv(ParallelNumKey, "1")
-	_ = os.Setenv(ReqTopicKey, "test528")
+//本地开发测试使用
+func SetEntryEnv() {
 
-	//log
-	_ = os.Setenv(env.LogTimeFormat, "2006-01-02 15:04:05")
-	_ = os.Setenv(env.LogOutput, "console")
-	//_ = os.Setenv(env.LogOutput, "./logs/bp-jobs-observer.log")
-	_ = os.Setenv(env.LogLevel, "info")
+	_ = os.Setenv(observers.EntryKey, EntryValue)
+	_ = os.Setenv(observers.DbHostKey, "192.168.100.116")
+	_ = os.Setenv(observers.DbPortKey, "27017")
+	_ = os.Setenv(observers.DbNameKey, "pharbers-sandbox-merge2")
+	_ = os.Setenv(observers.DbCollKey, "datasets")
+	_ = os.Setenv(observers.ParallelNumKey, "1")
+	_ = os.Setenv(observers.ReqTopicKey, "test528")
 
-	//kafka
-	_ = os.Setenv(env.KafkaConfigPath, "deploy-config/kafka_config.json")
-	_ = os.Setenv(env.KafkaSchemaRegistryUrl, "http://schema.message:8081")
 }

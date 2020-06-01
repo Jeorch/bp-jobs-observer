@@ -81,18 +81,3 @@ func Run() {
 	bpjo.Exec()
 	bpjo.Close()
 }
-
-//本地开发测试使用
-func SetEntryEnv() {
-
-	_ = os.Setenv(observers.EntryKey, EntryValue)
-	_ = os.Setenv(observers.DbHostKey, "192.168.100.116")
-	_ = os.Setenv(observers.DbPortKey, "27017")
-	_ = os.Setenv(observers.DbUserKey, "")
-	_ = os.Setenv(observers.DbPassKey, "")
-	_ = os.Setenv(observers.DbNameKey, "pharbers-sandbox-merge")
-	_ = os.Setenv(observers.DbCollKey, "assets")
-	_ = os.Setenv(observers.ParallelNumKey, "1")
-	_ = os.Setenv(observers.ReqTopicKey, "test528")
-
-}

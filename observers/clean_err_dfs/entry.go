@@ -1,15 +1,16 @@
-package datamart_start
+package clean_err_dfs
 
 import (
 	"github.com/PharbersDeveloper/bp-jobs-observer/observers"
-	datamart "github.com/PharbersDeveloper/bp-jobs-observer/observers/datamart_start/detail"
+	clean_err_dfs "github.com/PharbersDeveloper/bp-jobs-observer/observers/clean_err_dfs/detail"
 	"github.com/hashicorp/go-uuid"
 	"os"
 	"strconv"
 )
 
 const (
-	EntryValue = "datamart-start"
+	EntryValue = "clean-err-dfs-start"
+	AwsRegion = "AWS_REGION"
 )
 
 func Run() {
@@ -51,15 +52,10 @@ func Run() {
 	if err != nil {
 		panic(err.Error())
 	}
-	ReqTopic := os.Getenv(observers.ReqTopicKey)
-	if ReqTopic == "" {
-		println("Error! No REQ_TOPIC env set.")
-		return
-	}
 
 	newId, _ := uuid.GenerateUUID()
 	//TODO: Conditions 配置抽离
-	bpjo := datamart.ObserverInfo{
+	bpjo := clean_err_dfs.ObserverInfo{
 		Id:         newId,
 		DBHost:     DbHost,
 		DBPort:     DbPort,
@@ -75,9 +71,10 @@ func Run() {
 			},
 		},
 		ParallelNumber: ParallelNum,
-		RequestTopic:   ReqTopic,
 	}
 	bpjo.Open()
 	bpjo.Exec()
 	bpjo.Close()
 }
+
+

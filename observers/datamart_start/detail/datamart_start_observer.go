@@ -182,29 +182,37 @@ func (observer *ObserverInfo) worker(id int, jobChan <-chan models.BpDataset, ct
 				jobLogger.Infof("worker-%d start job=%v", id, j)
 
 				//send job request
-				err := observer.sendJobRequest(observer.RequestTopic, j)
+				err := observer.sendJobRequest(observer.RequestTopic, j, "append")
 				if err != nil {
 					jobLogger.Error(err.Error())
 				}
 				jobLogger.Infof("worker-%d sanded job=%v", id, j.Id.Hex())
+
+				//判断jobChan中是否还有job，若没有，则表示当前job为最后一条，发送end消息
+				if len(jobChan) == 0 {
+					//send lastJob request
+					lastJob := new(models.BpDataset)
+					lastJob.Id = bson.NewObjectId()
+					err := observer.sendJobRequest(observer.RequestTopic, *lastJob, "end")
+					if err != nil {
+						jobLogger.Error(err.Error())
+					}
+					jobLogger.Info("worker-%d sanded lastJob.")
+				}
 			}
 		}
 	}
 
 }
 
-func (observer *ObserverInfo) sendJobRequest(topic string, job models.BpDataset) error {
+func (observer *ObserverInfo) sendJobRequest(topic string, job models.BpDataset, taskType string) error {
 
 	msg := map[string]interface{}{
 		"datasetId":job.Id.Hex(),
-		"taskType":"append",
+		"taskType":taskType,
 		"url":job.Url,
 		"length":job.Length,
 		"remarks":"",
-	}
-
-	if len(jobChan) == 0 {
-		msg["taskType"] = "end"
 	}
 
 	jsonBytes, err := json.Marshal(msg)

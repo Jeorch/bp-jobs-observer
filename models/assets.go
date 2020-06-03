@@ -8,7 +8,7 @@ type BpAsset struct {
 	Description   string        `json:"description" bson:"description"`
 	Owner         string        `json:"owner" bson:"owner"`
 	Accessibility string        `json:"accessibility" bson:"accessibility"`
-	Version       int32         `json:"version" bson:"version"`
+	Version       string         `json:"version" bson:"version"`
 	IsNewVersion  bool          `json:"isNewVersion" bson:"isNewVersion"`
 	DataType      string        `json:"dataType" bson:"dataType"`
 	Providers     []string      `json:"providers" bson:"providers"`

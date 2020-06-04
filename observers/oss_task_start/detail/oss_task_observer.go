@@ -119,7 +119,8 @@ func (observer *ObserverInfo) queryJobs() ([]record.OssTask, error) {
 	for _, asset := range assets {
 		file, e := observer.queryFile(asset.File)
 		if e != nil {
-			return nil, e
+			logger.Error(e.Error())
+			continue
 		}
 		if file.Extension == "xlsx" || file.Extension == "xls" {
 			assetId := asset.Id.Hex()

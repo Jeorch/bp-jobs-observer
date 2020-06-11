@@ -117,15 +117,25 @@ func (observer *ObserverInfo) queryJobs() ([]record.OssTask, error) {
 
 	jobs := make([]record.OssTask, 0)
 	for _, asset := range assets {
+
+		if len(asset.Providers) != 2 || asset.Providers[1] == "CHC" {
+			continue
+		}
+
 		file, e := observer.queryFile(asset.File)
 		if e != nil {
 			logger.Error(e.Error())
 			continue
 		}
+		if file.Label != "原始数据" {
+			continue
+		}
+
 		if file.Extension == "xlsx" || file.Extension == "xls" {
 			assetId := asset.Id.Hex()
 			newId, _ := uuid.GenerateUUID()
-			providers, err := getProviders(asset)
+			//providers, err := getProviders(asset)
+			providers, err := convertProviders(asset)
 			if err != nil {
 				logger.Errorf("Get providers'error: %s.", err.Error())
 			}
@@ -137,7 +147,7 @@ func (observer *ObserverInfo) queryJobs() ([]record.OssTask, error) {
 				OssKey:     file.Url,
 				FileType:   file.Extension,
 				FileName:   file.FileName,
-				SheetName:  "",
+				SheetName:  file.SheetName,
 				Owner:      asset.Owner,
 				CreateTime: int64(asset.CreateTime),
 				Labels:     asset.Labels,
@@ -164,6 +174,14 @@ func (observer *ObserverInfo) queryFile(id bson.ObjectId) (models.BpFile, error)
 		return file, err
 	}
 	return file, err
+}
+
+func convertProviders(asset models.BpAsset) ([]string, error) {
+	switch asset.Providers[1] {
+	case "CPA&PTI&DDD&HH", "CPA", "GYC", "GYC&CPA":
+		asset.Providers[1] = "CPA&GYC"
+	}
+	return asset.Providers, nil
 }
 
 func getProviders(asset models.BpAsset) ([]string, error) {
@@ -248,6 +266,7 @@ func sendJobRequest(topic string, job record.OssTask) error {
 		return err
 	}
 
+	fmt.Println(string(json))
 	eventMsg := PhEventMsg.EventMsg{
 		JobId:   job.JobId,
 		TraceId: job.TraceId,

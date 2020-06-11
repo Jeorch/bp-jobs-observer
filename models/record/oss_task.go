@@ -18,21 +18,21 @@ import (
 )
 
 type OssTask struct {
-	AssetId    string
-	JobId      string
-	TraceId    string
-	OssKey     string
-	FileType   string
-	FileName   string
-	SheetName  string
-	Owner      string
-	CreateTime int64
-	Labels     []string
-	DataCover  []string
-	GeoCover   []string
-	Markets    []string
-	Molecules  []string
-	Providers  []string
+	AssetId    string	`json:"AssetId"`
+	JobId      string	`json:"JobId"`
+	TraceId    string	`json:"TraceId"`
+	OssKey     string	`json:"OssKey"`
+	FileType   string	`json:"FileType"`
+	FileName   string	`json:"FileName"`
+	SheetName  string	`json:"SheetName"`
+	Owner      string	`json:"Owner"`
+	CreateTime int64	`json:"CreateTime"`
+	Labels     []string	`json:"Labels"`
+	DataCover  []string	`json:"DataCover"`
+	GeoCover   []string	`json:"GeoCover"`
+	Markets    []string	`json:"Markets"`
+	Molecules  []string	`json:"Molecules"`
+	Providers  []string	`json:"Providers"`
 }
 
 func NewOssTaskWriter(writer io.Writer, codec container.Codec, recordsPerBlock int64) (*container.Writer, error) {

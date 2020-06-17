@@ -117,9 +117,9 @@ func (observer *ObserverInfo) queryJobs() ([]record.OssTask, error) {
 	jobs := make([]record.OssTask, 0)
 	for _, asset := range assets {
 
-		if len(asset.Providers) != 2 || asset.Providers[1] == "CHC" {
-			continue
-		}
+		//if len(asset.Providers) != 2 || asset.Providers[1] == "CHC" {
+		//	continue
+		//}
 
 		file, e := observer.queryFile(asset.File)
 		if e != nil {

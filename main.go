@@ -12,7 +12,7 @@ import (
 func main() {
 
 	//本地开发调试使用，部署时请注释掉下面 setDevEnv 行
-	//setDevEnv(clean_err_dfs.EntryValue)
+	//setDevEnv(datamart_start.EntryValue)
 
 	entry := os.Getenv(observers.EntryKey)
 	if entry == "" {

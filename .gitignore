@@ -19,3 +19,11 @@
 logs
 
 bp-jobs-observer
+
+mainSetLocalEnv.go
+
+observers/clean_err_dfs/entrySetLocalEnv.go
+
+observers/datamart_start/entrySetLocalEnv.go
+
+observers/oss_task_start/entrySetLocalEnv.go

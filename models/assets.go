@@ -8,7 +8,7 @@ type BpAsset struct {
 	Description   string        `json:"description" bson:"description"`
 	Owner         string        `json:"owner" bson:"owner"`
 	Accessibility string        `json:"accessibility" bson:"accessibility"`
-	Version       string         `json:"version" bson:"version"`
+	Version       string        `json:"version" bson:"version"`
 	IsNewVersion  bool          `json:"isNewVersion" bson:"isNewVersion"`
 	DataType      string        `json:"dataType" bson:"dataType"`
 	Providers     []string      `json:"providers" bson:"providers"`
@@ -19,6 +19,7 @@ type BpAsset struct {
 	Labels        []string      `json:"labels" bson:"labels"`
 	CreateTime    float32       `json:"createTime" bson:"createTime"`
 	File          bson.ObjectId `json:"file" bson:"file"`
+	Mart          bson.ObjectId `json:"mart" bson:"mart"`
 	Dfs           []interface{} `json:"dfs" bson:"dfs"`
 	MartTags      []string      `json:"martTags" bson:"martTags"`
 	V             int32         `json:"__v" bson:"__v"`

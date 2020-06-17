@@ -109,7 +109,6 @@ func (observer *ObserverInfo) queryJobs() ([]record.OssTask, error) {
 	logger.Info("query jobs from db")
 
 	var assets []models.BpAsset
-	//err := dbSession.DB(observer.Database).C(observer.Collection).Find(observer.Conditions).Limit(observer.ParallelNumber).All(&assets)
 	err := dbSession.DB(observer.Database).C(observer.Collection).Find(observer.Conditions).All(&assets)
 	if err != nil {
 		return nil, err
@@ -131,7 +130,7 @@ func (observer *ObserverInfo) queryJobs() ([]record.OssTask, error) {
 			continue
 		}
 
-		if file.Extension == "xlsx" || file.Extension == "xls" {
+		if file.Extension == "xlsx" || file.Extension == "xls" || file.Extension == "csv" {
 			assetId := asset.Id.Hex()
 			newId, _ := uuid.GenerateUUID()
 			//providers, err := getProviders(asset)

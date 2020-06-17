@@ -112,12 +112,23 @@ func (observer *ObserverInfo) queryJobs() ([]models.BpDataset, error) {
 		return nil, err
 	}
 
-	var allMart []models.BpMart
-	err = dbSession.DB(observer.Database).C("marts").Find(bson.M{}).All(&allMart)
+	var assets []models.BpAsset
+	err = dbSession.DB(observer.Database).C("assets").Find(bson.M{"dataType": "mart", "isNewVersion": true}).All(&assets)
 	if err != nil {
 		return nil, err
 	}
-	oldDfsIds, err := observer.getAllMartDfsParents(allMart)
+
+	var ids []bson.ObjectId
+	for _, asset := range assets {
+		ids = append(ids, asset.Mart)
+	}
+
+	var marts []models.BpMart
+	err = dbSession.DB(observer.Database).C("marts").Find(bson.M{"_id": bson.M{"$in": ids}}).All(&marts)
+	if err != nil {
+		return nil, err
+	}
+	oldDfsIds, err := observer.getAllMartDfsParents(marts)
 	if err != nil {
 		return nil, err
 	}
@@ -132,14 +143,14 @@ func (observer *ObserverInfo) queryJobs() ([]models.BpDataset, error) {
 	return jobs, nil
 }
 
-func (observer *ObserverInfo) getAllMartDfsParents(allMart []models.BpMart) ([]bson.ObjectId, error) {
+func (observer *ObserverInfo) getAllMartDfsParents(marts []models.BpMart) ([]bson.ObjectId, error) {
 	var res []bson.ObjectId
-	for _, mart := range allMart {
+	for _, mart := range marts {
 		for _, id := range mart.Dfs {
 			var ds models.BpDataset
 			err := dbSession.DB(observer.Database).C(observer.Collection).Find(bson.M{"_id": id}).One(&ds)
 			if err != nil {
-				return nil, err
+				continue
 			}
 			if len(ds.Parent) != 0 {
 				res = append(res, ds.Parent...)

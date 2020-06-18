@@ -28,9 +28,9 @@ type ObserverInfo struct {
 }
 
 var (
-	dbSession    *mgo.Session
-	jobChan      chan models.BpDataset
-	s3Svc  		*s3.S3
+	dbSession *mgo.Session
+	jobChan   chan models.BpDataset
+	s3Svc     *s3.S3
 )
 
 func (observer *ObserverInfo) Open() {
@@ -91,7 +91,7 @@ func (observer *ObserverInfo) Exec() {
 	}
 
 	execLogger.Info("Ended!")
-	time.Sleep(10 * time.Second) //10秒钟后ctx局部变量done
+	time.Sleep(15 * time.Second) //30秒钟后ctx局部变量done
 }
 
 func (observer *ObserverInfo) Close() {
@@ -105,57 +105,30 @@ func (observer *ObserverInfo) queryJobs() ([]models.BpDataset, error) {
 	logger := log.NewLogicLoggerBuilder().SetTraceId(observer.Id).Build()
 	logger.Info("query jobs from db")
 
+	var assets []models.BpAsset
+	err := dbSession.DB(observer.Database).C(observer.Collection).Find(observer.Conditions).All(&assets)
+	if err != nil {
+		return nil, err
+	}
+
+	var ids []bson.ObjectId
+	for _, asset := range assets {
+		ids = append(ids, asset.Dfs...)
+	}
+
 	var datasets []models.BpDataset
-	//err := dbSession.DB(observer.Database).C(observer.Collection).Find(bson.M{}).All(&datasets)
-	err := dbSession.DB(observer.Database).C(observer.Collection).Find(observer.Conditions).All(&datasets)
+	err = dbSession.DB(observer.Database).C("datasets").
+		Find(bson.M{
+			"_id": bson.M{"$in": ids},
+			"description": "pyJob",
+			"status": "end",
+			"url": bson.M{"$exists": true, "$ne": ""},
+		}).All(&datasets)
 	if err != nil {
 		return nil, err
 	}
 
-	var allMart []models.BpMart
-	err = dbSession.DB(observer.Database).C("marts").Find(bson.M{}).All(&allMart)
-	if err != nil {
-		return nil, err
-	}
-	oldDfsIds, err := observer.getAllMartDfsParents(allMart)
-	if err != nil {
-		return nil, err
-	}
-
-	jobs := make([]models.BpDataset, 0)
-	for _, dfs := range datasets {
-		if isNotOldDfs(dfs.Id, oldDfsIds) {
-			jobs = append(jobs, dfs)
-		}
-	}
-
-	return jobs, nil
-}
-
-func (observer *ObserverInfo) getAllMartDfsParents(allMart []models.BpMart) ([]bson.ObjectId, error) {
-	var res []bson.ObjectId
-	for _, mart := range allMart {
-		for _, id := range mart.Dfs {
-			var ds models.BpDataset
-			err := dbSession.DB(observer.Database).C(observer.Collection).Find(bson.M{"_id": id}).One(&ds)
-			if err != nil {
-				return nil, err
-			}
-			if len(ds.Parent) != 0 {
-				res = append(res, ds.Parent...)
-			}
-		}
-	}
-	return res, nil
-}
-
-func isNotOldDfs(id bson.ObjectId, oldDfsIds []bson.ObjectId) bool {
-	for _, oldDfsId := range oldDfsIds {
-		if id.Hex() == oldDfsId.Hex() {
-			return false
-		}
-	}
-	return true
+	return datasets, nil
 }
 
 func pushJobs(jobChan chan<- models.BpDataset, jobs []models.BpDataset) {
@@ -189,10 +162,11 @@ func (observer *ObserverInfo) worker(id int, jobChan <-chan models.BpDataset, ct
 				}
 
 				if dfsHasErr {
+					jobLogger.Info("*********************")
 					//删除dfs的error结果在s3上
-					go deleteErrorResultInS3(j.Url)
+					//go deleteErrorResultInS3(j.Url)
 					//删除本条dfs数据在datasets表上
-					go observer.deleteDatasetById(j.Id)
+					//go observer.deleteDatasetById(j.Id)
 					//找到包含本条dfsId的assets数据，清空其dfs数组
 					go observer.resetAssetsDfsByDatasetId(j.Id)
 
@@ -210,7 +184,7 @@ func isDatasetHasErrorFileInS3(dfsUrl string) (bool, error) {
 	hasErr := false
 	logger := log.NewLogicLoggerBuilder().Build()
 
-	s3Path := strings.Replace(dfsUrl,utils.S3_PathPrefix, "", 1)
+	s3Path := strings.Replace(dfsUrl, utils.S3_PathPrefix, "", 1)
 	bucketAndPath := strings.SplitN(s3Path, "/", 2)
 	if len(bucketAndPath) != 2 {
 		logger.Error("Url's s3a path error format.")
@@ -222,11 +196,11 @@ func isDatasetHasErrorFileInS3(dfsUrl string) (bool, error) {
 	objs, err := utils.S3_ListObjects(s3Svc, bucket, errPath)
 	if err != nil {
 		logger.Error(err.Error())
-		return hasErr, err
+		return true, err
 	}
 
 	if len(objs) == 0 {
-		return hasErr, nil
+		return true, nil
 	}
 
 	for _, obj := range objs {
@@ -242,7 +216,7 @@ func isDatasetHasErrorFileInS3(dfsUrl string) (bool, error) {
 func deleteErrorResultInS3(dfsUrl string) {
 	logger := log.NewLogicLoggerBuilder().Build()
 
-	s3Path := strings.Replace(dfsUrl,utils.S3_PathPrefix, "", 1)
+	s3Path := strings.Replace(dfsUrl, utils.S3_PathPrefix, "", 1)
 	bucketAndPath := strings.SplitN(s3Path, "/", 2)
 	if len(bucketAndPath) != 2 {
 		logger.Error("Url's s3a path error format.")
@@ -258,7 +232,7 @@ func deleteErrorResultInS3(dfsUrl string) {
 
 }
 
-func (observer *ObserverInfo) deleteDatasetById(id bson.ObjectId)  {
+func (observer *ObserverInfo) deleteDatasetById(id bson.ObjectId) {
 	logger := log.NewLogicLoggerBuilder().Build()
 	err := dbSession.DB(observer.Database).C(observer.Collection).RemoveId(id)
 	if err != nil {
@@ -266,11 +240,11 @@ func (observer *ObserverInfo) deleteDatasetById(id bson.ObjectId)  {
 	}
 }
 
-func (observer *ObserverInfo) resetAssetsDfsByDatasetId(datasetId bson.ObjectId)  {
+func (observer *ObserverInfo) resetAssetsDfsByDatasetId(datasetId bson.ObjectId) {
 	logger := log.NewLogicLoggerBuilder().Build()
 
 	var asset models.BpAsset
-	err := dbSession.DB(observer.Database).C("assets").Find(bson.M{"dfs":bson.M{"$in":[]bson.ObjectId{datasetId}}}).One(&asset)
+	err := dbSession.DB(observer.Database).C("assets").Find(bson.M{"dfs": datasetId}).One(&asset)
 	if err != nil {
 		logger.Error(err.Error())
 	}
@@ -278,7 +252,7 @@ func (observer *ObserverInfo) resetAssetsDfsByDatasetId(datasetId bson.ObjectId)
 
 	if len(asset.Dfs) != 0 {
 		asset.Dfs = nil
-		err = dbSession.DB(observer.Database).C("assets").UpdateId(asset.Id, asset)
+		err = dbSession.DB(observer.Database).C("assets").UpdateId(asset.Id, &asset)
 		if err != nil {
 			logger.Error(err.Error())
 		}

@@ -120,7 +120,7 @@ func (observer *ObserverInfo) queryJobs() ([]models.BpDataset, error) {
 
 	var ids []bson.ObjectId
 	for _, asset := range assets {
-		ids = append(ids, asset.Mart)
+		ids = append(ids, *asset.Mart)
 	}
 
 	var marts []models.BpMart

@@ -64,11 +64,11 @@ func Run() {
 		Database:   DbName,
 		Collection: DbColl,
 		Conditions: map[string]interface{}{
-			"$and": []map[string]interface{}{
-				map[string]interface{}{"url": map[string]interface{}{"$exists": true, "$ne": ""}},
-				map[string]interface{}{"status": "end"},
-				map[string]interface{}{"description": "pyJob"},
-			},
+			"dataType": map[string]interface{}{"$exists": true, "$ne": "mart"},
+			"isNewVersion": true,
+			"providers.1": map[string]interface{}{"$exists": true, "$eq": "CHC"},
+			"dfs.1": map[string]interface{}{"$exists": true},
+			"file": map[string]interface{}{"$exists": true, "$ne": ""},
 		},
 		ParallelNumber: ParallelNum,
 	}

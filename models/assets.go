@@ -19,8 +19,8 @@ type BpAsset struct {
 	Labels        []string      `json:"labels" bson:"labels"`
 	CreateTime    float32       `json:"createTime" bson:"createTime"`
 	File          bson.ObjectId `json:"file" bson:"file"`
-	Mart          bson.ObjectId `json:"mart" bson:"mart"`
-	Dfs           []interface{} `json:"dfs" bson:"dfs"`
+	Mart          *bson.ObjectId `json:"mart,omitempty" bson:"mart,omitempty"`
+	Dfs           []bson.ObjectId `json:"dfs" bson:"dfs"`
 	MartTags      []string      `json:"martTags" bson:"martTags"`
 	V             int32         `json:"__v" bson:"__v"`
 }

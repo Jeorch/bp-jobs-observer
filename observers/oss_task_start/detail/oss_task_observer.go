@@ -134,7 +134,7 @@ func (observer *ObserverInfo) queryJobs() ([]record.OssTask, error) {
 			assetId := asset.Id.Hex()
 			newId, _ := uuid.GenerateUUID()
 			//providers, err := getProviders(asset)
-			providers, err := convertProviders(asset)
+			//providers, err := convertProviders(asset)
 			if err != nil {
 				logger.Errorf("Get providers'error: %s.", err.Error())
 			}
@@ -154,7 +154,7 @@ func (observer *ObserverInfo) queryJobs() ([]record.OssTask, error) {
 				GeoCover:   asset.GeoCover,
 				Markets:    asset.Markets,
 				Molecules:  asset.Molecules,
-				Providers:  providers,
+				Providers:  asset.Providers,
 			}
 			jobs = append(jobs, job)
 		} else {

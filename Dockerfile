@@ -39,3 +39,5 @@ COPY --from=0 /app/bp-jobs-observer .
 COPY deploy-config/kafka_config.json /resources/kafka_config.json
 
 ENTRYPOINT ["/app/bp-jobs-observer"]
+
+# docker build -t '444603803904.dkr.ecr.cn-northwest-1.amazonaws.com.cn/bp-jobs-observer:0.0.15' .

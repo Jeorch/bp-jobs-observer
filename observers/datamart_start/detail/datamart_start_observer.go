@@ -10,6 +10,7 @@ import (
 	"github.com/PharbersDeveloper/bp-jobs-observer/models/PhEventMsg"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
+	"os"
 	"time"
 )
 
@@ -193,7 +194,11 @@ func (observer *ObserverInfo) worker(id int, jobChan <-chan models.BpDataset, ct
 				jobLogger.Infof("worker-%d start job=%v", id, j)
 
 				//send job request
-				err := observer.sendJobRequest(observer.RequestTopic, j, "append")
+				taskType := os.Getenv("TASK_TYPE")
+				if taskType == "" {
+					taskType = "append"
+				}
+				err := observer.sendJobRequest(observer.RequestTopic, j, taskType)
 				if err != nil {
 					jobLogger.Error(err.Error())
 				}
